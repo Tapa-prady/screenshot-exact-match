@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
   LocateFixed, GraduationCap, Sparkles, Star, Footprints, Clock, ShieldCheck,
-  Phone, Share2, Car, Users, Home, CalendarDays, MessageCircle, User, ChevronLeft,
+  Phone as PhoneIcon, Share2, Car, Users, Home, CalendarDays, MessageCircle, User, ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/rafiq_logo.png.asset.json";
@@ -197,7 +197,7 @@ function TrackingScreen() {
       <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-card p-4">
         <p className="text-xs text-muted-foreground">Maman voit votre position en direct</p>
         <div className="mt-3 flex gap-2">
-          <Button variant="soft" className="flex-1"><Phone /> Appeler</Button>
+          <Button variant="soft" className="flex-1"><PhoneIcon /> Appeler</Button>
           <Button variant="soft" className="flex-1"><Users /> Mes proches</Button>
         </div>
         <Button variant="sos" size="lg" className="mt-3 w-full">SOS · Appeler le 19</Button>
