@@ -1,4 +1,5 @@
 # Rafiq
 
-- [ ] Étapes 5–6 : calcul des prix et recherche de rendez-vous sur l’itinéraire, avec tests.
-- [ ] Vérifier le calcul dans l’aperçu et attendre la validation avant les écrans fonctionnels suivants.
+- [x] Étapes 5–6 : moteur de prix et de rendez-vous sur l’itinéraire, vérifié par 16 tests.
+- [x] Vérifier le calcul des prix dans l’aperçu.
+- [ ] Écrans de recherche et connexion aux vrais itinéraires : en attente de validation de cette étape.
