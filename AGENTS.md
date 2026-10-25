@@ -8,3 +8,8 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep pricing and route matching in browser-safe pure modules shared by search and booking, so every surface applies identical rules.
+- Use Turf to project pickups onto the driver's geometry and require a resolved pedestrian route before accepting a match; straight-line proximity cannot establish walking distance.
+- Store cumulative distance and travel time alongside route geometry when integrating routing providers, so pickup time and passenger fare follow the actual driven segment.
+- Convert persisted legacy `[lat, lng]` route arrays to GeoJSON `[longitude, latitude]` at the adapter boundary and combine SQL travel dates/times into explicit instants before matching; the engine must never guess coordinate order or time zones.
