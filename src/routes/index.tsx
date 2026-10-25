@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/rafiq_logo.png.asset.json";
 import mapImg from "@/assets/map-mock.jpg";
+import { PriceCalculator } from "@/components/PriceCalculator";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,6 +16,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Les écrans de Rafiq : accueil, résultats, réservation, suivi et SOS." },
       { property: "og:title", content: "Rafiq — Maquettes et design" },
       { property: "og:description", content: "Trouver. Partager. Arriver. Covoiturage ENSA Tanger." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
@@ -228,6 +231,8 @@ function Index() {
           </div>
         </div>
       </header>
+
+      <PriceCalculator />
 
       <section className="mx-auto mt-10 grid max-w-6xl gap-6 px-6 md:grid-cols-[1fr_2fr]">
         <div className="rounded-3xl bg-card p-6 shadow-card">
