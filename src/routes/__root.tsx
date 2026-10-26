@@ -81,6 +81,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Rafiq — Covoiturage étudiant ENSA Tanger" },
       { name: "description", content: "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger." },
       { name: "theme-color", content: "#0B1E3F" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Rafiq" },
       { property: "og:title", content: "Rafiq — Covoiturage étudiant ENSA Tanger" },
       { property: "og:description", content: "Trouver. Partager. Arriver." },
       { property: "og:type", content: "website" },
@@ -107,7 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <head>
         <HeadContent />
       </head>
@@ -121,6 +124,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Installable app: only in production and never inside an editor preview frame.
+  useEffect(() => {
+    if (import.meta.env.PROD && "serviceWorker" in navigator && window.self === window.top) {
+      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

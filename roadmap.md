@@ -9,8 +9,10 @@
 - [x] Mes trajets (`/mes-trajets`) : réservations, annulation, trajets publiés, proches de confiance.
 - [x] Voyager (`/trajet/$bookingId`) : position partagée en direct avec l’autre personne, bouton SOS, numéros d’urgence, SMS/WhatsApp aux proches.
 - [x] Rafiq IA (`/assistant`) : cherche, propose de réserver, météo. Fonctionne sans clé (mode simple) ; avec `GEMINI_API_KEY` (secret serveur) il comprend les phrases libres.
-- [ ] Test de bout en bout avec de vrais comptes et de vrais trajets.
-- [ ] Restreindre en base ce qu’une passagère peut modifier sur sa réservation (prix, statut) : migration SQL à appliquer.
-- [ ] Purge automatique des positions (24 h) et des messages IA (30 jours).
+- [x] Sécurité en base (`drizzle/migrations/0001_security_guards.sql`) : note et vérification protégées, réservation verrouillée sauf statut, avis limités à l’autre partie, purge des positions (24 h) et des messages IA (30 jours). Testée sur Postgres 16 ; **à appliquer une fois sur la base Supabase**.
+- [x] Version installable : manifeste, icônes, service worker prudent (page hors ligne), `lang="fr"`.
+- [ ] Appliquer `0001_security_guards.sql` sur la base Supabase de production.
 - [ ] Prévenir le conducteur (notification) quand la pluie est annoncée.
-- [ ] Publication en application installable (PWA ou Capacitor).
+- [ ] Test de bout en bout avec de vrais comptes et de vrais trajets.
+- [ ] Prix et point de rendez-vous : aujourd’hui calculés par le serveur mais enregistrés avec les droits de la personne connectée ; à verrouiller avant tout paiement réel.
+- [ ] Générer un APK depuis l’adresse publiée (PWABuilder ou Bubblewrap) si une installation hors navigateur est souhaitée.
