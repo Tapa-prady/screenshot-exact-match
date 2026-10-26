@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import type { Coordinates } from "@/lib/ride-matching";
 import "leaflet/dist/leaflet.css";
 
-export default function RideMap({ origin, driving = [], walking = [] }: { origin: Coordinates | null; driving?: Coordinates[]; walking?: Coordinates[] }) {
+const NONE: Coordinates[] = [];
+
+export default function RideMap({ origin, driving = NONE, walking = NONE }: { origin: Coordinates | null; driving?: Coordinates[] | undefined; walking?: Coordinates[] | undefined }) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let disposed = false;

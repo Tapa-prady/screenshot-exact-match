@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { findRideMatches, type Coordinates, type DriverRoute } from "./ride-matching";
+import { findRideMatches, type Coordinates, type DriverRoute, type RideMatch } from "./ride-matching";
 import { legacyRouteCoordinates, moroccoInstant, tripRunsOnDate } from "./route-adapter";
 
 const coordinate = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
@@ -78,7 +78,7 @@ export const searchRealRides = createServerFn({ method: "POST" })
           routes.push({ id: trip.id, coordinates, distanceMeters: cumulative(annotation.distance), elapsedSeconds: cumulative(annotation.duration), departureTime: moroccoInstant(data.date, trip.departure_time), seatsAvailable: trip.seats, rating: profile?.rating_avg ?? 0 });
         } catch { unavailableCount++; }
       }
-      const matches = [];
+      const matches: RideMatch[] = [];
       // One route at a time respects community pedestrian routing's request interval.
       for (const route of routes) {
         const found = await findRideMatches({ passengerPosition: data.origin, desiredArrivalTime: deadline, earliestPickupTime: Date.now(), routes: [route], resolveWalkingRoute: async (from, to) => {
