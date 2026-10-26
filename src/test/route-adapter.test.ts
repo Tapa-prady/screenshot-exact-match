@@ -6,7 +6,11 @@ describe("Route integration", () => {
     expect(legacyRouteCoordinates([[35.7, -5.8]])).toEqual([[-5.8, 35.7]]);
   });
   it("interprets requested arrival in Morocco, not the device timezone", () => {
-    expect(moroccoInstant("2026-10-26", "08:30")).toBe(Date.UTC(2026, 9, 26, 7, 30));
+    // Morocco was on GMT+1 until 20 September 2026.
+    expect(moroccoInstant("2026-09-01", "08:30")).toBe(Date.UTC(2026, 8, 1, 7, 30));
+  });
+  it("uses GMT after Morocco's return to standard time on 20 September 2026", () => {
+    expect(moroccoInstant("2026-10-26", "08:30")).toBe(Date.UTC(2026, 9, 26, 8, 30));
   });
   it("uses the actual Moroccan Ramadan offset", () => {
     expect(moroccoInstant("2026-03-01", "08:30")).toBe(Date.UTC(2026, 2, 1, 8, 30));

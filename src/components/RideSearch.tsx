@@ -2,12 +2,13 @@ import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import { ClientOnly, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
-import { Car, Clock, Footprints, GraduationCap, LocateFixed, MapPin, Search, LoaderCircle } from "lucide-react";
+import { Car, CircleCheck, Clock, Footprints, GraduationCap, LocateFixed, MapPin, Search, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SiteHeader } from "@/components/SiteHeader";
 import { searchAddress, searchRealRides } from "@/lib/routing.functions";
+import { bookRide } from "@/lib/trips.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type { Coordinates } from "@/lib/ride-matching";
-import logo from "@/assets/rafiq_logo.png.asset.json";
 
 const RideMap = lazy(() => import("./RideMap"));
 type Place = { label: string; coordinates: Coordinates };
@@ -29,16 +30,12 @@ export function RideSearch() {
   const [selected, setSelected] = useState("");
   const geocode = useServerFn(searchAddress);
   const search = useServerFn(searchRealRides);
-  const [account, setAccount] = useState<string | null>(null);
+  const book = useServerFn(bookRide);
+  const [booked, setBooked] = useState<{ priceDh: number; pickupTime: number } | null>(null);
   useEffect(() => {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     setDate(formatInTimeZone(tomorrow, "Africa/Casablanca", "yyyy-MM-dd"));
-    const show = (email?: string | null) => setAccount(email ? email.split("@")[0] : null);
-    supabase.auth.getSession().then(({ data }) => show(data.session?.user.email));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => show(session?.user.email));
-    return () => data.subscription.unsubscribe();
   }, []);
-  async function signOut() { await supabase.auth.signOut(); setResults(null); }
 
   async function locate() {
     setError(""); setBusy("gps"); setResults(null);
@@ -61,7 +58,7 @@ export function RideSearch() {
     finally { setBusy(null); }
   }
   async function submit(event: FormEvent) {
-    event.preventDefault(); setError(""); setResults(null);
+    event.preventDefault(); setError(""); setResults(null); setBooked(null);
     if (!origin || !destination) { setError("Choisissez votre départ et confirmez l’adresse d’arrivée."); return; }
     setBusy("rides");
     try {
@@ -74,17 +71,20 @@ export function RideSearch() {
     finally { setBusy(null); }
   }
   const active = results?.matches.find(match => match.tripId === selected);
+  async function reserve() {
+    if (!origin || !active) return;
+    setError(""); setBusy("book");
+    try {
+      const response = await book({ data: { tripId: active.tripId, date, arrival, origin: origin.coordinates } });
+      if (response.ok) setBooked({ priceDh: response.priceDh, pickupTime: response.pickupTime });
+      else setError(response.error);
+    } catch { setError("La réservation n’a pas abouti. Réessayez dans un instant."); }
+    finally { setBusy(null); }
+  }
   const driving = results?.routes.find(route => route.id === selected)?.coordinates;
   return (
     <main className="min-h-screen">
-      <header className="border-b bg-card px-5 py-5">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <img src={logo.url} alt="" className="size-12 rounded-xl" />
-          <h1 className="font-display text-2xl font-bold">Rafiq</h1>
-          <span className="ms-auto hidden items-center gap-2 text-sm text-primary sm:flex"><GraduationCap className="size-5" /><span>ENSA Tanger</span></span>
-          {account ? <Button variant="outline" size="sm" className="ms-auto sm:ms-0" onClick={signOut}>{account} · Déconnexion</Button> : <Button asChild variant="soft" size="sm" className="ms-auto sm:ms-0"><Link to="/auth">Connexion</Link></Button>}
-        </div>
-      </header>
+      <SiteHeader onSignOut={() => { setResults(null); setBooked(null); }} />
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div>
           <h2 className="font-display text-2xl font-bold">Où allez-vous ?</h2>
@@ -115,6 +115,8 @@ export function RideSearch() {
               <span className="flex flex-wrap gap-3 text-xs"><span className="flex items-center gap-1"><Footprints />{Math.ceil(match.walkingRoute.distanceMeters)} m</span><span className="flex items-center gap-1"><Clock />RDV {formatInTimeZone(match.pickupTime, "Africa/Casablanca", "HH:mm")}</span></span>
               <span className="text-xs">Arrivée {formatInTimeZone(match.arrivalTime, "Africa/Casablanca", "HH:mm")}</span>
             </Button>)}</div>
+            {active && !booked && <Button variant="cta" className="mt-4 w-full" disabled={busy !== null} onClick={reserve}>{busy === "book" ? <LoaderCircle className="animate-spin" /> : <CircleCheck />}{busy === "book" ? "Réservation…" : `Réserver ma place · ${active.priceDh} DH`}</Button>}
+            {booked && <div role="status" className="mt-4 space-y-2 rounded-2xl border border-primary bg-accent p-4 text-sm"><p className="flex items-center gap-2 font-bold text-primary"><CircleCheck className="size-5" />Place réservée · {booked.priceDh} DH</p><p>Rendez-vous à {formatInTimeZone(booked.pickupTime, "Africa/Casablanca", "HH:mm")} au point indiqué en pointillés sur la carte.</p><Button asChild variant="link" className="h-auto px-0"><Link to="/mes-trajets">Voir mes trajets</Link></Button></div>}
           </section>}
         </div>
         <section aria-label="Itinéraire" className="min-w-0">
