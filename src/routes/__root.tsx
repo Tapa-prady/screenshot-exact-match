@@ -79,15 +79,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Rafiq — Covoiturage étudiant ENSA Tanger" },
-      {
-        name: "description",
-        content:
-          "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger.",
-      },
+      { name: "description", content: "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger." },
       { name: "theme-color", content: "#0B1E3F" },
-      { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Rafiq" },
       { property: "og:title", content: "Rafiq — Covoiturage étudiant ENSA Tanger" },
       { property: "og:description", content: "Trouver. Partager. Arriver." },
       { property: "og:type", content: "website" },
@@ -114,11 +107,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
-      <body suppressHydrationWarning>
+      <body>
         {children}
         <Scripts />
       </body>
@@ -128,13 +121,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
-  // Installable app: only in production and never inside an editor preview frame.
-  useEffect(() => {
-    if (import.meta.env.PROD && "serviceWorker" in navigator && window.self === window.top) {
-      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-    }
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
