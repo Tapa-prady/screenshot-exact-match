@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface Account { ready: boolean; userId: string | null; email: string | null }
+export interface Account {
+  ready: boolean;
+  userId: string | null;
+  email: string | null;
+}
 
 /** Current Supabase session; `ready` stays false until the first answer so pages never flash "logged out". */
 export function useAccount(): Account {

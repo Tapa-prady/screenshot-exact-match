@@ -1,0 +1,6 @@
+{
+  "name": "Rafiq — Covoiturage étudiant ENSA Tanger",
+  "description": "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

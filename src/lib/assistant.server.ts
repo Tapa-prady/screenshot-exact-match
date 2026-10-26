@@ -33,33 +33,80 @@ export async function modelIntent(message: string, today: string): Promise<Inten
   const key = process.env["GEMINI_API_KEY"];
   if (!key) return null;
   const model = process.env["GEMINI_MODEL"] ?? "gemini-2.5-flash";
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt(today) }] },
-      contents: [{ role: "user", parts: [{ text: message }] }],
-      generationConfig: { temperature: 0, maxOutputTokens: 200, responseMimeType: "application/json", responseSchema },
-    }),
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!response.ok) throw new Error("Model unavailable");
-  const body = z.object({ candidates: z.array(z.object({ content: z.object({ parts: z.array(z.object({ text: z.string().optional() })) }) })).min(1) }).parse(await response.json());
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt(today) }] },
+        contents: [{ role: "user", parts: [{ text: message }] }],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: 200,
+          responseMimeType: "application/json",
+          responseSchema,
+        },
+      }),
+      signal: AbortSignal.timeout(12000),
+    },
+  );
+  if (!response.ok) {
+    if (response.status === 429) {
+      console.warn(
+        "[Gemini API] Quota Google AI Studio atteint (HTTP 429) — bascule automatique sur le parseur local",
+      );
+    }
+    throw new Error("Model unavailable");
+  }
+  const body = z
+    .object({
+      candidates: z
+        .array(
+          z.object({
+            content: z.object({ parts: z.array(z.object({ text: z.string().optional() })) }),
+          }),
+        )
+        .min(1),
+    })
+    .parse(await response.json());
   const text = body.candidates[0]?.content.parts[0]?.text;
   if (!text) return null;
   return intentFromModel(JSON.parse(text), today);
 }
 
 /** Rain probability (%) and millimetres for the hour of the requested arrival, or nulls when unavailable. */
-export async function forecastFor(date: string, arrival: string): Promise<{ probability: number | null; millimetres: number | null }> {
+export async function forecastFor(
+  date: string,
+  arrival: string,
+): Promise<{ probability: number | null; millimetres: number | null }> {
   try {
-    const params = new URLSearchParams({ latitude: String(PLACE.lat), longitude: String(PLACE.lng), hourly: "precipitation_probability,precipitation", timezone: "Africa/Casablanca", forecast_days: "7" });
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(10000) });
+    const params = new URLSearchParams({
+      latitude: String(PLACE.lat),
+      longitude: String(PLACE.lng),
+      hourly: "precipitation_probability,precipitation",
+      timezone: "Africa/Casablanca",
+      forecast_days: "7",
+    });
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+      signal: AbortSignal.timeout(10000),
+    });
     if (!response.ok) throw new Error("Forecast unavailable");
-    const body = z.object({ hourly: z.object({ time: z.array(z.string()), precipitation_probability: z.array(z.number().nullable()), precipitation: z.array(z.number().nullable()) }) }).parse(await response.json());
+    const body = z
+      .object({
+        hourly: z.object({
+          time: z.array(z.string()),
+          precipitation_probability: z.array(z.number().nullable()),
+          precipitation: z.array(z.number().nullable()),
+        }),
+      })
+      .parse(await response.json());
     const index = body.hourly.time.indexOf(`${date}T${arrival.slice(0, 2)}:00`);
     if (index < 0) return { probability: null, millimetres: null };
-    return { probability: body.hourly.precipitation_probability[index] ?? null, millimetres: body.hourly.precipitation[index] ?? null };
+    return {
+      probability: body.hourly.precipitation_probability[index] ?? null,
+      millimetres: body.hourly.precipitation[index] ?? null,
+    };
   } catch {
     return { probability: null, millimetres: null };
   }

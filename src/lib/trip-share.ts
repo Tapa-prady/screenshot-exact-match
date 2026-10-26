@@ -10,13 +10,20 @@ export function normalizeMoroccanPhone(input: string): string | null {
 }
 
 export function osmLink(lat: number, lng: number): string {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new RangeError("Invalid position");
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+    throw new RangeError("Invalid position");
   return `https://www.openstreetmap.org/?mlat=${lat.toFixed(5)}&mlon=${lng.toFixed(5)}#map=17/${lat.toFixed(5)}/${lng.toFixed(5)}`;
 }
 
-export function positionMessage(input: { firstName: string; position: { lat: number; lng: number } | null; alert: boolean }): string {
+export function positionMessage(input: {
+  firstName: string;
+  position: { lat: number; lng: number } | null;
+  alert: boolean;
+}): string {
   const who = input.firstName.trim() || "Une étudiante";
-  const where = input.position ? ` Ma position : ${osmLink(input.position.lat, input.position.lng)}` : " Ma position n’est pas disponible.";
+  const where = input.position
+    ? ` Ma position : ${osmLink(input.position.lat, input.position.lng)}`
+    : " Ma position n’est pas disponible.";
   return input.alert
     ? `ALERTE Rafiq : ${who} a déclenché le bouton SOS pendant un covoiturage. Appelez cette personne tout de suite.${where}`
     : `Rafiq : ${who} est en covoiturage.${where}`;

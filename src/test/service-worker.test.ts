@@ -8,23 +8,42 @@ function loadWorker(fetchImpl: () => Promise<unknown>) {
   const listeners: Record<string, Listener> = {};
   const offline = { offline: true };
   const cache = { add: vi.fn(async () => undefined) };
-  const caches = { open: vi.fn(async () => cache), match: vi.fn(async () => offline), keys: vi.fn(async () => ["rafiq-shell-v1", "old"]), delete: vi.fn(async () => true) };
-  const self = { addEventListener: (name: string, listener: Listener) => { listeners[name] = listener; }, skipWaiting: vi.fn(async () => undefined), clients: { claim: vi.fn(async () => undefined) } };
+  const caches = {
+    open: vi.fn(async () => cache),
+    match: vi.fn(async () => offline),
+    keys: vi.fn(async () => ["rafiq-shell-v1", "old"]),
+    delete: vi.fn(async () => true),
+  };
+  const self = {
+    addEventListener: (name: string, listener: Listener) => {
+      listeners[name] = listener;
+    },
+    skipWaiting: vi.fn(async () => undefined),
+    clients: { claim: vi.fn(async () => undefined) },
+  };
   runInNewContext(readFileSync("public/sw.js", "utf-8"), { self, caches, fetch: fetchImpl });
   return { listeners, caches, offline, cache };
 }
 
 describe("service worker", () => {
   it("falls back to the offline page only for page navigations", async () => {
-    const { listeners, offline } = loadWorker(async () => { throw new Error("offline"); });
+    const { listeners, offline } = loadWorker(async () => {
+      throw new Error("offline");
+    });
     const respondWith = vi.fn();
     listeners["fetch"]!({ request: { method: "GET", mode: "navigate" }, respondWith });
     expect(await respondWith.mock.calls[0]![0]).toBe(offline);
   });
 
   it("never touches API calls, writes or assets", () => {
-    const { listeners } = loadWorker(async () => { throw new Error("offline"); });
-    for (const request of [{ method: "POST", mode: "navigate" }, { method: "GET", mode: "cors" }, { method: "GET", mode: "no-cors" }]) {
+    const { listeners } = loadWorker(async () => {
+      throw new Error("offline");
+    });
+    for (const request of [
+      { method: "POST", mode: "navigate" },
+      { method: "GET", mode: "cors" },
+      { method: "GET", mode: "no-cors" },
+    ]) {
       const respondWith = vi.fn();
       listeners["fetch"]!({ request, respondWith });
       expect(respondWith).not.toHaveBeenCalled();

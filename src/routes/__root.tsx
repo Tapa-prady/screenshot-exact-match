@@ -79,7 +79,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Rafiq — Covoiturage étudiant ENSA Tanger" },
-      { name: "description", content: "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger." },
+      {
+        name: "description",
+        content:
+          "Trouver. Partager. Arriver. Le covoiturage réservé aux étudiants de l'ENSA Tanger.",
+      },
       { name: "theme-color", content: "#0B1E3F" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -110,11 +114,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Scripts />
       </body>

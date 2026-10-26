@@ -3,19 +3,27 @@
 const CACHE = "rafiq-shell-v1";
 const OFFLINE = "/offline.html";
 
-self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.add(OFFLINE)).then(() => self.skipWaiting()));
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.add(OFFLINE))
+      .then(() => self.skipWaiting()),
+  );
 });
 
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+      )
       .then(() => self.clients.claim()),
   );
 });
 
-self.addEventListener("fetch", event => {
+self.addEventListener("fetch", (event) => {
   const request = event.request;
   // Only page navigations get a fallback; API calls, Supabase and everything else go straight to the network.
   if (request.method !== "GET" || request.mode !== "navigate") return;
