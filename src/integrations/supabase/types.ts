@@ -443,6 +443,7 @@ export type Database = {
         Args: { _trip_id: string; _user: string }
         Returns: boolean
       }
+      purge_old_data: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "student"
