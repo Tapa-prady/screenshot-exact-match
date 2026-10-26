@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
-import { ClientOnly } from "@tanstack/react-router";
+import { ClientOnly, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
 import { Car, Clock, Footprints, GraduationCap, LocateFixed, MapPin, Search, LoaderCircle } from "lucide-react";
@@ -29,10 +29,16 @@ export function RideSearch() {
   const [selected, setSelected] = useState("");
   const geocode = useServerFn(searchAddress);
   const search = useServerFn(searchRealRides);
+  const [account, setAccount] = useState<string | null>(null);
   useEffect(() => {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     setDate(formatInTimeZone(tomorrow, "Africa/Casablanca", "yyyy-MM-dd"));
+    const show = (email?: string | null) => setAccount(email ? email.split("@")[0] : null);
+    supabase.auth.getSession().then(({ data }) => show(data.session?.user.email));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => show(session?.user.email));
+    return () => data.subscription.unsubscribe();
   }, []);
+  async function signOut() { await supabase.auth.signOut(); setResults(null); }
 
   async function locate() {
     setError(""); setBusy("gps"); setResults(null);
@@ -60,7 +66,7 @@ export function RideSearch() {
     setBusy("rides");
     try {
       const { data, error: authError } = await supabase.auth.getUser();
-      if (authError || !data.user) { setError("La recherche de conducteurs est réservée aux étudiants connectés. L’écran de connexion arrive à l’étape suivante."); return; }
+      if (authError || !data.user) { setError("Connectez-vous avec votre adresse @etu.uae.ac.ma pour voir les conducteurs."); return; }
       const response = await search({ data: { origin: origin.coordinates, destination: destination.coordinates, date, arrival } });
       setResults(response); setSelected(response.matches[0]?.tripId ?? "");
       if (response.error) setError(response.error);
@@ -75,7 +81,8 @@ export function RideSearch() {
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <img src={logo.url} alt="" className="size-12 rounded-xl" />
           <h1 className="font-display text-2xl font-bold">Rafiq</h1>
-          <span className="ms-auto flex items-center gap-2 text-sm text-primary"><GraduationCap className="size-5" /><span>ENSA Tanger</span></span>
+          <span className="ms-auto hidden items-center gap-2 text-sm text-primary sm:flex"><GraduationCap className="size-5" /><span>ENSA Tanger</span></span>
+          {account ? <Button variant="outline" size="sm" className="ms-auto sm:ms-0" onClick={signOut}>{account} · Déconnexion</Button> : <Button asChild variant="soft" size="sm" className="ms-auto sm:ms-0"><Link to="/auth">Connexion</Link></Button>}
         </div>
       </header>
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
