@@ -14,6 +14,7 @@ export function SiteHeader({ onSignOut }: { onSignOut?: () => void }) {
         <Link to="/" className="flex items-center gap-3"><img src={logo.url} alt="" className="size-12 rounded-xl" /><span className="font-display text-2xl font-bold">Rafiq</span></Link>
         <span className="ms-auto hidden items-center gap-2 text-sm text-primary lg:flex"><GraduationCap className="size-5" /><span>ENSA Tanger</span></span>
         {account.email && <nav aria-label="Navigation principale" className="order-3 flex w-full items-center gap-1 sm:order-none sm:w-auto">
+          <Button asChild variant="ghost" size="sm"><Link to="/assistant">Rafiq IA</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link to="/publier">Publier un trajet</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link to="/mes-trajets">Mes trajets</Link></Button>
         </nav>}

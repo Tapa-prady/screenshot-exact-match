@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
-import { Car, Clock, Footprints } from "lucide-react";
+import { Car, Clock, Footprints, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAccount } from "@/hooks/use-account";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeMoroccanPhone } from "@/lib/trip-share";
 
 export const Route = createFileRoute("/mes-trajets")({
   head: () => ({
@@ -29,6 +30,7 @@ const WEEKDAYS = ["", "lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
 const dayLabel = (date: string) => format(parseISO(date), "EEEE d MMMM", { locale: fr });
 const clock = (time: string | null) => (time ?? "").slice(0, 5);
 const shortLabel = (label: string) => label.split(",")[0] ?? label;
+const MAX_CONTACTS = 5;
 
 async function names(ids: string[]): Promise<Record<string, string>> {
   if (ids.length === 0) return {};
@@ -64,6 +66,36 @@ function MyTripsPage() {
   const [error, setError] = useState("");
   const query = useQuery({ queryKey: ["my-trips", account.userId], queryFn: () => loadAll(account.userId as string), enabled: Boolean(account.userId) });
   const data = query.data;
+  const contactsQuery = useQuery({
+    queryKey: ["my-trips", "contacts", account.userId], enabled: Boolean(account.userId),
+    queryFn: async () => {
+      const { data: rows, error: failure } = await supabase.from("trusted_contacts").select("id, name, phone").eq("owner_id", account.userId as string).order("created_at");
+      if (failure) throw failure;
+      return rows ?? [];
+    },
+  });
+  const contacts = contactsQuery.data ?? [];
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactError, setContactError] = useState("");
+
+  async function addContact(event: FormEvent) {
+    event.preventDefault(); setContactError("");
+    const phone = normalizeMoroccanPhone(contactPhone);
+    if (!account.userId) return;
+    if (contactName.trim().length < 2) { setContactError("Indiquez le prénom de votre proche."); return; }
+    if (!phone) { setContactError("Numéro invalide. Exemple : 06 12 34 56 78."); return; }
+    if (contacts.length >= MAX_CONTACTS) { setContactError(`Vous pouvez enregistrer ${MAX_CONTACTS} proches au maximum.`); return; }
+    const { error: failure } = await supabase.from("trusted_contacts").insert({ owner_id: account.userId, name: contactName.trim().slice(0, 60), phone });
+    if (failure) { setContactError("L’enregistrement n’a pas abouti. Réessayez."); return; }
+    setContactName(""); setContactPhone("");
+    await client.invalidateQueries({ queryKey: ["my-trips", "contacts"] });
+  }
+  async function removeContact(id: string) {
+    if (!account.userId) return;
+    const { error: failure } = await supabase.from("trusted_contacts").delete().eq("id", id).eq("owner_id", account.userId);
+    if (failure) setContactError("La suppression n’a pas abouti. Réessayez."); else await client.invalidateQueries({ queryKey: ["my-trips", "contacts"] });
+  }
 
   async function cancelBooking(id: string) {
     if (!account.userId || !window.confirm("Annuler cette réservation ?")) return;
@@ -103,7 +135,10 @@ function MyTripsPage() {
                     <span>{item.price_dh} DH</span>
                     {item.trips && <span>Conducteur : {data.people[item.trips.driver_id] ?? "—"}</span>}
                   </p>
-                  {item.status === "confirmed" && <Button variant="outline" size="sm" className="mt-3" onClick={() => cancelBooking(item.id)}>Annuler</Button>}
+                  {item.status === "confirmed" && <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild variant="soft" size="sm"><Link to="/trajet/$bookingId" params={{ bookingId: item.id }}>Suivre le trajet</Link></Button>
+                    <Button variant="outline" size="sm" onClick={() => cancelBooking(item.id)}>Annuler</Button>
+                  </div>}
                 </li>
               ))}</ul>
             </section>
@@ -117,13 +152,34 @@ function MyTripsPage() {
                   <li key={trip.id} className="rounded-2xl border bg-card p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-semibold">{shortLabel(trip.origin_label)} → {shortLabel(trip.dest_label)}</span><span className="text-sm text-muted-foreground">{trip.active ? "Actif" : "Désactivé"}</span></div>
                     <p className="mt-1 text-xs text-muted-foreground">{clock(trip.departure_time)} · {trip.one_off_date ? dayLabel(trip.one_off_date) : trip.weekdays.map(day => WEEKDAYS[day]).join(", ")} · {trip.seats} place{trip.seats > 1 ? "s" : ""} · {trip.route_km} km</p>
-                    {riders.length > 0 && <ul className="mt-3 space-y-1 border-t pt-3 text-sm" aria-label="Passagères à venir">{riders.map(rider => <li key={rider.id}><span className="capitalize">{dayLabel(rider.travel_date)}</span> · {data.people[rider.passenger_id] ?? "Passagère"} · RDV {clock(rider.pickup_eta)} ({rider.walk_meters} m)</li>)}</ul>}
+                    {riders.length > 0 && <ul className="mt-3 space-y-1 border-t pt-3 text-sm" aria-label="Passagères à venir">{riders.map(rider => <li key={rider.id}><span className="capitalize">{dayLabel(rider.travel_date)}</span> · {data.people[rider.passenger_id] ?? "Passagère"} · RDV {clock(rider.pickup_eta)} ({rider.walk_meters} m) · <Link className="text-primary underline" to="/trajet/$bookingId" params={{ bookingId: rider.id }}>Suivre</Link></li>)}</ul>}
                     <Button variant="outline" size="sm" className="mt-3" onClick={() => setActive(trip.id, !trip.active)}>{trip.active ? "Désactiver" : "Réactiver"}</Button>
                   </li>
                 );
               })}</ul>
             </section>
           </>
+        )}
+
+        {account.email && (
+          <section id="proches" aria-labelledby="close-title">
+            <h3 id="close-title" className="text-lg font-bold">Mes proches de confiance</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Ils reçoivent, par SMS ou WhatsApp depuis votre téléphone, votre position et vos alertes SOS. Jusqu’à {MAX_CONTACTS} personnes.</p>
+            <ul className="mt-3 space-y-2">{contacts.map(contact => (
+              <li key={contact.id} className="flex items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 text-sm">
+                <span><b>{contact.name}</b> · {contact.phone}</span>
+                <Button variant="ghost" size="icon" className="size-10" aria-label={`Supprimer ${contact.name}`} onClick={() => removeContact(contact.id)}><Trash2 /></Button>
+              </li>
+            ))}</ul>
+            {contacts.length < MAX_CONTACTS && (
+              <form onSubmit={addContact} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <input aria-label="Prénom du proche" placeholder="Prénom" className="h-12 rounded-xl border bg-card px-3 text-sm" value={contactName} onChange={event => setContactName(event.target.value)} />
+                <input aria-label="Téléphone du proche" type="tel" inputMode="tel" placeholder="06 12 34 56 78" className="h-12 rounded-xl border bg-card px-3 text-sm" value={contactPhone} onChange={event => setContactPhone(event.target.value)} />
+                <Button type="submit" variant="cta">Ajouter</Button>
+              </form>
+            )}
+            {contactError && <p role="alert" className="mt-2 text-sm text-destructive">{contactError}</p>}
+          </section>
         )}
       </div>
     </main>

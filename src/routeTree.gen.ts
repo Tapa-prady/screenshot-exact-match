@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MesTrajetsRouteImport } from './routes/mes-trajets'
 import { Route as PublierRouteImport } from './routes/publier'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TrajetBookingIdRouteImport } from './routes/trajet.$bookingId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -40,44 +47,78 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrajetBookingIdRoute = TrajetBookingIdRouteImport.update({
+  id: '/trajet/$bookingId',
+  path: '/trajet/$bookingId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assistant': typeof AssistantRoute
   '/auth': typeof AuthRoute
   '/mes-trajets': typeof MesTrajetsRoute
   '/publier': typeof PublierRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/trajet/$bookingId': typeof TrajetBookingIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assistant': typeof AssistantRoute
   '/auth': typeof AuthRoute
   '/mes-trajets': typeof MesTrajetsRoute
   '/publier': typeof PublierRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/trajet/$bookingId': typeof TrajetBookingIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assistant': typeof AssistantRoute
   '/auth': typeof AuthRoute
   '/mes-trajets': typeof MesTrajetsRoute
   '/publier': typeof PublierRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/trajet/$bookingId': typeof TrajetBookingIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/mes-trajets' | '/publier' | '/reset-password'
+  fullPaths:
+    | '/'
+    | '/assistant'
+    | '/auth'
+    | '/mes-trajets'
+    | '/publier'
+    | '/reset-password'
+    | '/trajet/$bookingId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/mes-trajets' | '/publier' | '/reset-password'
+  to:
+    | '/'
+    | '/assistant'
+    | '/auth'
+    | '/mes-trajets'
+    | '/publier'
+    | '/reset-password'
+    | '/trajet/$bookingId'
   id:
-    '__root__' | '/' | '/auth' | '/mes-trajets' | '/publier' | '/reset-password'
+    | '__root__'
+    | '/'
+    | '/assistant'
+    | '/auth'
+    | '/mes-trajets'
+    | '/publier'
+    | '/reset-password'
+    | '/trajet/$bookingId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssistantRoute: typeof AssistantRoute
   AuthRoute: typeof AuthRoute
   MesTrajetsRoute: typeof MesTrajetsRoute
   PublierRoute: typeof PublierRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  TrajetBookingIdRoute: typeof TrajetBookingIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -87,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -117,15 +165,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trajet/$bookingId': {
+      id: '/trajet/$bookingId'
+      path: '/trajet/$bookingId'
+      fullPath: '/trajet/$bookingId'
+      preLoaderRoute: typeof TrajetBookingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssistantRoute: AssistantRoute,
   AuthRoute: AuthRoute,
   MesTrajetsRoute: MesTrajetsRoute,
   PublierRoute: PublierRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  TrajetBookingIdRoute: TrajetBookingIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
