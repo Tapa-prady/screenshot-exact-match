@@ -96,12 +96,25 @@ describe("walkingResolver", () => {
     expect(walk?.distanceMeters).toBe(304);
   });
 
-  it("rejects a route whose ends do not snap onto the path", async () => {
+  it("rejects a route whose ends are far from any path, and says so", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(osrm({}, 60)))),
+    );
+    const notes = { snapRejected: [] as number[], walks: [] };
+    expect(
+      await settle(walkingResolver(() => undefined, notes)(geometry[0]!, geometry[2]!)),
+    ).toBeNull();
+    expect(notes.snapRejected).toHaveLength(1);
+  });
+
+  it("accepts an address a few metres from the path and counts that gap in the distance", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(JSON.stringify(osrm({}, 12)))),
     );
-    expect(await settle(walkingResolver(() => undefined)(geometry[0]!, geometry[2]!))).toBeNull();
+    const walk = await settle(walkingResolver(() => undefined)(geometry[0]!, geometry[2]!));
+    expect(walk?.distanceMeters).toBe(324);
   });
 
   it("reports an unavailable provider instead of inventing a path", async () => {
@@ -118,7 +131,16 @@ describe("walkingResolver", () => {
 describe("routeFromPickup", () => {
   it("never returns the part of the path before the pickup", async () => {
     const { routeFromPickup } = await import("@/lib/routing.server");
-    const path: [number, number][] = [[-5.8, 35.7], [-5.79, 35.71], [-5.78, 35.72], [-5.77, 35.73]];
-    expect(routeFromPickup(path, [-5.785, 35.715])).toEqual([[-5.785, 35.715], [-5.78, 35.72], [-5.77, 35.73]]);
+    const path: [number, number][] = [
+      [-5.8, 35.7],
+      [-5.79, 35.71],
+      [-5.78, 35.72],
+      [-5.77, 35.73],
+    ];
+    expect(routeFromPickup(path, [-5.785, 35.715])).toEqual([
+      [-5.785, 35.715],
+      [-5.78, 35.72],
+      [-5.77, 35.73],
+    ]);
   });
 });

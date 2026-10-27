@@ -1,5 +1,6 @@
 import { lineString, point } from "@turf/helpers";
 import nearestPointOnLine from "@turf/nearest-point-on-line";
+import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
 import { shortAddress } from "./address";
 import { coordinate } from "./schemas";
@@ -106,21 +107,44 @@ export async function verifiedGeometry(trip: TripGeometryRow) {
   };
 }
 
-/** Pedestrian routes are only accepted when both ends snap onto the real path. */
-export function walkingResolver(onUnavailable: () => void): WalkingRouteResolver {
+/** What the pedestrian checks saw, so an empty answer can be explained. */
+export interface WalkNotes {
+  snapRejected: number[];
+  walks: { meters: number; seconds: number }[];
+}
+
+// Address points are rarely exactly on a footpath; the gap is added to the walking distance,
+// and the total must still stay within 200 m.
+const MAX_START_SNAP_METERS = 40;
+const MAX_END_SNAP_METERS = 15;
+
+/** Pedestrian routes are only accepted when both ends snap close to a real path. */
+export function walkingResolver(
+  onUnavailable: () => void,
+  notes?: WalkNotes,
+): WalkingRouteResolver {
   return async (from, to) => {
     try {
       const result = await routeRequest("foot", from, to);
       const startSnap = result.waypoints[0]?.distance ?? Infinity;
       const endSnap = result.waypoints[1]?.distance ?? Infinity;
-      // Reject snapped paths that do not reach the actual pickup; never claim a partial path is walkable.
-      if (startSnap > 5 || endSnap > 5) return null;
+      if (startSnap > MAX_START_SNAP_METERS || endSnap > MAX_END_SNAP_METERS) {
+        notes?.snapRejected.push(
+          Math.round(Math.max(startSnap - MAX_START_SNAP_METERS + 40, endSnap)),
+        );
+        return null;
+      }
       const extra = startSnap + endSnap;
-      return {
+      const walk = {
         coordinates: result.route.geometry.coordinates,
         distanceMeters: result.route.distance + extra,
         durationSeconds: result.route.duration + extra / 1.2,
       };
+      notes?.walks.push({
+        meters: Math.round(walk.distanceMeters),
+        seconds: Math.round(walk.durationSeconds),
+      });
+      return walk;
     } catch {
       onUnavailable();
       return null;
@@ -240,6 +264,32 @@ function noMatchHint(trips: { route: unknown }[], origin: Coordinates): string {
   if (Number.isFinite(meters) && meters > 200)
     return `${count}, mais votre départ est à environ ${Math.round(meters)} m du chemin le plus proche. Le rendez-vous doit être à 200 m maximum de votre position : choisissez une adresse plus proche de l’itinéraire du conducteur.`;
   return `${count} passe près de votre départ, mais pas à une heure compatible : le conducteur doit partir assez tôt pour vous déposer avant l’heure d’arrivée choisie, et le départ ne doit pas être déjà passé.`;
+}
+
+const clock = (instant: number) => formatInTimeZone(instant, "Africa/Casablanca", "HH:mm");
+
+/** In plain words, why trips that pass near the passenger still were not offered. */
+function explainNoMatch(
+  routes: DriverRoute[],
+  deadline: number,
+  notes: WalkNotes,
+  count: number,
+): string {
+  const intro = `${count} trajet${count > 1 ? "s" : ""} vers cette arrivée passe${count > 1 ? "nt" : ""} près de votre départ, mais :`;
+  const late = routes.filter(
+    (route) => route.departureTime + (route.elapsedSeconds.at(-1) ?? 0) * 1000 > deadline,
+  );
+  if (late.length === routes.length && routes.length > 0) {
+    const route = late[0] as DriverRoute;
+    const minutes = Math.round((route.elapsedSeconds.at(-1) ?? 0) / 60);
+    return `${intro} le conducteur part à ${clock(route.departureTime)} et met environ ${minutes} min (durée calculée sur la route, sans embouteillages) : il arrive à ${clock(route.departureTime + minutes * 60_000)}, après votre heure limite de ${clock(deadline)}. Choisissez une heure d’arrivée plus tardive.`;
+  }
+  if (notes.snapRejected.length > 0)
+    return `${intro} votre adresse est trop éloignée d’une rue ou d’un chemin piéton pour confirmer le rendez-vous. Choisissez une adresse précise sur la route (nom de rue) ou utilisez « Ma position actuelle ».`;
+  const long = notes.walks.find((walk) => walk.meters > 200 || walk.seconds >= 300);
+  if (long)
+    return `${intro} la marche jusqu’au rendez-vous ferait ${long.meters} m (maximum 200 m, moins de 5 minutes). Rapprochez-vous du trajet du conducteur.`;
+  return `${intro} le départ du conducteur est déjà passé ou ne laisse pas assez de temps pour rejoindre le rendez-vous à pied.`;
 }
 
 /** The arrival point most published trips share (the school), or null when there is none. */
@@ -363,6 +413,7 @@ export async function searchRides(
       });
     }
     const matches: RideMatch[] = [];
+    const notes: WalkNotes = { snapRejected: [], walks: [] };
     // One route at a time respects community pedestrian routing's request interval.
     for (const route of routes) {
       const found = await findRideMatches({
@@ -372,7 +423,7 @@ export async function searchRides(
         routes: [route],
         resolveWalkingRoute: walkingResolver(() => {
           unavailableCount++;
-        }),
+        }, notes),
       });
       matches.push(...found);
     }
@@ -394,7 +445,7 @@ export async function searchRides(
       error: null,
       hint:
         matches.length === 0 && unavailableCount === 0
-          ? noMatchHint(candidates, data.origin)
+          ? explainNoMatch(routes, deadline, notes, candidates.length)
           : null,
       unavailableCount,
     };
