@@ -39,7 +39,14 @@ type Message = {
   offer?: Reply["offer"];
   bookingId?: string;
 };
-const EXAMPLES = ["Un trajet demain 7h30 depuis Malabata", "Et s’il pleut ?"];
+const EXAMPLES = [
+  "Un trajet demain 7h30 depuis Malabata",
+  "Et s’il pleut ?",
+  "Mes réservations",
+  "Combien ça coûte ?",
+  "Comment publier un trajet ?",
+  "Comment fonctionne le SOS ?",
+];
 const EMPTY_CONTEXT: ChatContext = { date: null, arrival: null, originText: null };
 
 function AssistantPage() {
@@ -153,7 +160,7 @@ function AssistantPage() {
                       : "me-10 rounded-2xl border bg-card px-4 py-3 text-sm"
                   }
                 >
-                  <p>{message.text}</p>
+                  <p className="whitespace-pre-line">{message.text}</p>
                   {message.offer && (
                     <Button
                       variant="cta"
@@ -223,8 +230,8 @@ function AssistantPage() {
               </Button>
             </form>
             <p className="text-xs text-muted-foreground">
-              Rafiq IA cherche un trajet pour arriver avant l’heure indiquée, avec un rendez-vous à
-              200 m maximum. Il ne prévient pas encore le conducteur en cas de pluie.
+              Rafiq IA cherche un trajet pour arriver avant l’heure indiquée (rendez-vous à 200 m
+              maximum), donne la météo et les prix, et répond aux questions sur l’application.
               {simple ? " Mode simple : l’assistant comprend les phrases courtes." : ""}
             </p>
           </>

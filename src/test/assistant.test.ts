@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  answerFaq,
+  TOPICS,
   describeSearch,
   intentFromModel,
   mergeContext,
@@ -37,8 +39,53 @@ describe("parseIntentFallback", () => {
   it("does not read years or prices as times", () => {
     expect(parseIntentFallback("bonjour 2026 12 DH", TODAY).arrival).toBeNull();
   });
-  it("returns unknown for small talk", () => {
-    expect(parseIntentFallback("salut ça va", TODAY).kind).toBe("unknown");
+  it("answers small talk with a greeting, not a search", () => {
+    expect(parseIntentFallback("salut ça va", TODAY)).toMatchObject({
+      kind: "faq",
+      topic: "greeting",
+    });
+  });
+  it("returns unknown for what it cannot help with", () => {
+    expect(parseIntentFallback("quel est le meilleur film ?", TODAY).kind).toBe("unknown");
+  });
+});
+
+describe("everyday phrasing", () => {
+  const cases: [string, Record<string, unknown>][] = [
+    [
+      "je pars de Iberia demain à 8h30",
+      { kind: "search", originText: "Iberia", date: "2026-10-27", arrival: "08:30" },
+    ],
+    [
+      "je suis à Marshan, je dois arriver à 8 heures",
+      { kind: "search", originText: "Marshan", arrival: "08:00" },
+    ],
+    [
+      "de Malabata à l'ENSA lundi 7h45",
+      { kind: "search", originText: "Malabata", date: "2026-11-02", arrival: "07:45" },
+    ],
+    [
+      "un trajet vendredi 8h depuis Boukhalef",
+      { kind: "search", originText: "Boukhalef", date: "2026-10-30", arrival: "08:00" },
+    ],
+    ["un trajet demain matin", { kind: "search", originText: null, date: "2026-10-27" }],
+    ["combien ça coûte ?", { kind: "faq", topic: "price" }],
+    ["comment publier un trajet ?", { kind: "faq", topic: "publish" }],
+    ["comment réserver ?", { kind: "faq", topic: "book" }],
+    ["comment annuler ma réservation", { kind: "faq", topic: "cancel" }],
+    ["c'est quoi le SOS ?", { kind: "faq", topic: "safety" }],
+    ["un conducteur doit être étudiant ?", { kind: "faq", topic: "drivers" }],
+    ["tu peux faire quoi ?", { kind: "faq", topic: "how" }],
+    ["merci !", { kind: "faq", topic: "thanks" }],
+    ["mes réservations", { kind: "bookings" }],
+    ["va-t-il pleuvoir demain à 8h ?", { kind: "weather", date: "2026-10-27", arrival: "08:00" }],
+  ];
+  it.each(cases)("%s", (text, expected) => {
+    expect(parseIntentFallback(text, TODAY)).toMatchObject(expected);
+  });
+  it("gives a fixed answer for every topic", () => {
+    for (const topic of TOPICS) expect(answerFaq(topic).length).toBeGreaterThan(20);
+    expect(answerFaq("price")).toContain("25 DH");
   });
 });
 

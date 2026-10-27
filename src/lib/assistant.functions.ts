@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   addDays,
+  answerFaq,
   describeSearch,
   mergeContext,
   parseIntentFallback,
@@ -20,7 +21,7 @@ import { clockTime, coordinate, isoDate } from "./schemas";
 
 const MESSAGES_PER_HOUR = 15;
 const HELP =
-  "Je peux chercher un trajet (« un trajet demain 7h30 depuis Malabata ») ou vous dire s’il va pleuvoir (« et s’il pleut ? »).";
+  "Je n’ai pas bien compris. Je peux chercher un trajet (« un trajet demain 7h30 depuis Malabata »), vous dire s’il va pleuvoir, donner les prix, expliquer la sécurité ou lister vos réservations. Pour le reste, utilisez les écrans de l’application.";
 
 export const askRafiq = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -121,6 +122,32 @@ export const askRafiq = createServerFn({ method: "POST" })
             }
           }
         }
+      } else if (wanted.kind === "faq") {
+        text = answerFaq(wanted.topic ?? "how");
+      } else if (wanted.kind === "bookings") {
+        const { data: mine } = await context.supabase
+          .from("bookings")
+          .select("travel_date, pickup_eta, price_dh, status, trips(origin_label, dest_label)")
+          .eq("passenger_id", context.userId)
+          .in("status", ["confirmed", "in_progress"])
+          .gte("travel_date", today)
+          .order("travel_date")
+          .limit(3);
+        const { count: published } = await context.supabase
+          .from("trips")
+          .select("id", { count: "exact", head: true })
+          .eq("driver_id", context.userId)
+          .eq("active", true);
+        const lines = (mine ?? []).map(
+          (item) =>
+            `• ${format(parseISO(item.travel_date), "EEEE d MMMM", { locale: fr })} à ${(item.pickup_eta ?? "").slice(0, 5)} : ${(item.trips?.origin_label ?? "").split(",")[0]} → ${(item.trips?.dest_label ?? "").split(",")[0]} (${item.price_dh} DH)`,
+        );
+        text = lines.length
+          ? `Vos prochaines réservations :\n${lines.join("\n")}`
+          : "Vous n’avez aucune réservation à venir.";
+        if (published)
+          text += `\nVous avez ${published} trajet${published > 1 ? "s" : ""} publié${published > 1 ? "s" : ""} en tant que conducteur.`;
+        text += " Tout est dans « Mes trajets ».";
       } else if (wanted.kind === "weather") {
         if (!wanted.date || !wanted.arrival)
           text =
