@@ -72,7 +72,7 @@ function PublishPage() {
     try {
       const r = await publish({ data: { origin, destination, departureTime: time, oneOffDate: recurring ? null : date, weekdays, seats, vehicle } });
       if (r.error) setMessage(r.error);
-      else { setMessage(`Trajet publié : ${r.km} km, ${r.minutes} min. Prix passager max ${calculateRidePrice(r.km ?? 0).priceDh} DH.`); loadTrips(); }
+      else { setMessage(`Trajet publié : ${r.km} km, ${r.minutes} min. Prix passager max ${calculateRidePrice(r.km ?? 0)} DH.`); loadTrips(); }
     } catch { setMessage("La publication a échoué. Réessayez."); } finally { setBusy(null); }
   }
   async function toggle(trip: Trip) {
