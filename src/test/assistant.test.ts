@@ -85,7 +85,7 @@ describe("everyday phrasing", () => {
   });
   it("gives a fixed answer for every topic", () => {
     for (const topic of TOPICS) expect(answerFaq(topic).length).toBeGreaterThan(20);
-    expect(answerFaq("price")).toContain("25 DH");
+    expect(answerFaq("price")).toContain("20 DH");
   });
 });
 

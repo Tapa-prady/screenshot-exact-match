@@ -109,24 +109,24 @@ describe("Rafiq — Parcours complet de bout en bout (End-to-End Journey)", () =
       const match = matches[0]!;
       expect(match.tripId).toBe("trip-ensa-001");
       expect(match.walkingRoute.distanceMeters).toBeLessThanOrEqual(200);
-      expect(match.priceDh).toBeGreaterThanOrEqual(7);
-      expect(match.priceDh).toBeLessThanOrEqual(25);
+      expect(match.priceDh).toBeGreaterThanOrEqual(5);
+      expect(match.priceDh).toBeLessThanOrEqual(20);
     });
   });
 
   // 4. Calcul tarifaire transparent
   describe("4. Barème kilométrique équitable", () => {
-    it("applique le barème officiel Rafiq avec plancher de 7 DH et plafond de 25 DH", () => {
-      // 2 km: 2 * 3 = 6 -> plancher 7 DH
-      expect(calculateRidePrice(2)).toBe(7);
-      // 5 km: 5 * 3 = 15 DH
-      expect(calculateRidePrice(5)).toBe(15);
-      // 8 km: 15 + 3*1 = 18 DH
-      expect(calculateRidePrice(8)).toBe(18);
-      // 14 km: 15 + 5 + 4*0.5 = 22 DH
-      expect(calculateRidePrice(14)).toBe(22);
-      // 30 km: 15 + 5 + 20*0.5 = 30 -> plafond 25 DH
-      expect(calculateRidePrice(30)).toBe(25);
+    it("applique le barème officiel Rafiq avec plancher de 5 DH et plafond de 20 DH", () => {
+      // 2 km: 2 * 2 = 4 -> plancher 5 DH
+      expect(calculateRidePrice(2)).toBe(5);
+      // 5 km: 5 * 2 = 10 DH
+      expect(calculateRidePrice(5)).toBe(10);
+      // 8 km: 10 + 3*1 = 13 DH
+      expect(calculateRidePrice(8)).toBe(13);
+      // 14 km: 10 + 5 + 4*0.5 = 17 DH
+      expect(calculateRidePrice(14)).toBe(17);
+      // 30 km: 10 + 5 + 10 = 25 -> plafond 20 DH
+      expect(calculateRidePrice(30)).toBe(20);
     });
   });
 

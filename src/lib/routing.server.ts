@@ -231,15 +231,46 @@ export interface DriverCard {
   vehicle: string | null;
 }
 
-/** Searching and booking are for ENSA students; other members (external drivers) can publish. */
-export async function isVerifiedStudent(userId: string): Promise<boolean> {
+export interface Account {
+  verified: boolean;
+  type: "student" | "driver";
+  /** True while the database does not have the role column yet (migration not applied). */
+  legacy: boolean;
+}
+
+export async function accountOf(userId: string): Promise<Account> {
   const db = await getAdminClient();
-  const { data } = await db.from("profiles").select("verified").eq("id", userId).maybeSingle();
-  return data?.verified === true;
+  const full = await db
+    .from("profiles")
+    .select("verified, account_type")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!full.error)
+    return {
+      verified: full.data?.verified === true,
+      type: full.data?.account_type === "driver" ? "driver" : "student",
+      legacy: false,
+    };
+  const basic = await db.from("profiles").select("verified").eq("id", userId).maybeSingle();
+  return { verified: basic.data?.verified === true, type: "student", legacy: true };
+}
+
+/** Searching and booking: student accounts only (a verified @etu.uae.ac.ma address in student mode). */
+export async function isStudentAccount(userId: string): Promise<boolean> {
+  const account = await accountOf(userId);
+  return account.verified && account.type === "student";
+}
+
+/** Publishing: driver accounts only. */
+export async function isDriverAccount(userId: string): Promise<boolean> {
+  const account = await accountOf(userId);
+  return account.legacy || account.type === "driver";
 }
 
 export const STUDENTS_ONLY =
-  "La recherche et la réservation sont réservées aux étudiants de l’ENSA Tanger (adresse @etu.uae.ac.ma). Vous pouvez publier vos trajets en tant que conducteur.";
+  "La recherche et la réservation sont réservées aux comptes Étudiant (adresse @etu.uae.ac.ma). Si votre adresse est étudiante, passez votre compte en mode Étudiant ; sinon, vous pouvez publier vos trajets en tant que conducteur.";
+export const DRIVERS_ONLY =
+  "Votre compte est en mode Étudiant : il sert à chercher et réserver. Passez-le en mode Conducteur pour publier un trajet.";
 
 /** Straight-line distance from the passenger to the closest published path, in metres. */
 function nearestPathMeters(trips: { route: unknown }[], origin: Coordinates): number {
@@ -334,7 +365,7 @@ export async function searchRides(
     if (deadline <= Date.now())
       return { ...empty, error: "Choisissez une heure d’arrivée future." };
     const db = await getAdminClient();
-    if (!(await isVerifiedStudent(userId))) return { ...empty, error: STUDENTS_ONLY };
+    if (!(await isStudentAccount(userId))) return { ...empty, error: STUDENTS_ONLY };
     const { data: trips, error } = await db.from("trips").select("*").eq("active", true).limit(50);
     if (error) throw error;
     const all = trips ?? [];

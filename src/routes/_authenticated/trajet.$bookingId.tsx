@@ -1,3 +1,4 @@
+import { shortAddress } from "@/lib/address";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ClientOnly } from "@/components/ClientOnly";
@@ -250,7 +251,8 @@ function TripLivePage() {
               {data.trips && (
                 <p className="mt-1 flex items-center gap-2 text-muted-foreground">
                   <MapPin className="size-4 text-primary" />
-                  {data.trips.origin_label.split(",")[0]} → {data.trips.dest_label.split(",")[0]}
+                  {shortAddress(data.trips.origin_label).split(",")[0]} →{" "}
+                  {shortAddress(data.trips.dest_label).split(",")[0]}
                 </p>
               )}
               {!active && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, LoaderCircle, LocateFixed, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { shortAddress } from "@/lib/address";
 import { searchAddress } from "@/lib/routing.functions";
 import type { Coordinates } from "@/lib/ride-matching";
 
@@ -55,7 +56,12 @@ export function AddressField({
     setBusy("search");
     setPlaces([]);
     try {
-      const response = await geocode({ data: { query } });
+      const raw = await geocode({ data: { query } });
+      // Shortened here too, so even an older server answer never shows the full postal hierarchy.
+      const response = {
+        ...raw,
+        places: raw.places.map((place) => ({ ...place, label: shortAddress(place.label) })),
+      };
       if (response.error) setError(response.error);
       else if (!response.places.length)
         setError("Aucune adresse trouvée. Précisez la rue ou le lieu.");

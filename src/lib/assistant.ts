@@ -214,9 +214,9 @@ export function answerFaq(topic: Topic): string {
   const price = (km: number) => `${calculateRidePrice(km)} DH`;
   switch (topic) {
     case "price":
-      return `Le prix partage les frais d’essence et dépend de votre distance en voiture : 3 DH/km sur les 5 premiers km, 1 DH/km de 5 à 10 km, 0,5 DH/km au-delà, avec un minimum de 7 DH et un maximum de 25 DH. Par exemple : 5 km → ${price(5)}, 10 km → ${price(10)}, 20 km → ${price(20)}. Le prix exact s’affiche avant de réserver.`;
+      return `Le prix partage les frais d’essence et dépend de votre distance en voiture : 2 DH/km sur les 5 premiers km, 1 DH/km de 5 à 10 km, 0,5 DH/km au-delà, avec un minimum de 5 DH et un maximum de 20 DH. Par exemple : 5 km → ${price(5)}, 10 km → ${price(10)}, 20 km → ${price(20)}. Le prix exact s’affiche avant de réserver.`;
     case "publish":
-      return "Pour proposer un trajet, touchez « Je suis conducteur » sur l’accueil (ou « Publier un trajet » dans le menu). Indiquez le départ, l’arrivée, l’heure, les jours, le nombre de places et votre véhicule. Les conducteurs n’ont pas besoin d’être étudiants.";
+      return "Pour proposer un trajet, touchez « Je suis conducteur » sur l’accueil (ou « Publier un trajet » dans le menu). Indiquez le départ, l’arrivée, l’heure, les jours, le nombre de places et votre véhicule. Votre compte doit être en mode Conducteur ; les conducteurs n’ont pas besoin d’être étudiants.";
     case "book":
       return "Pour réserver : indiquez votre position, l’arrivée (ENSA) et l’heure à laquelle vous devez arriver, puis touchez « Trouver un trajet ». Le rendez-vous est toujours à 200 m maximum de vous. Vous pouvez aussi me dire ici : « un trajet demain 7h30 depuis Malabata ». La réservation est réservée aux étudiants avec une adresse @etu.uae.ac.ma.";
     case "cancel":
@@ -224,7 +224,7 @@ export function answerFaq(topic: Topic): string {
     case "safety":
       return "Sur l’écran du trajet, vous pouvez partager votre position en direct (seulement avec l’autre personne du trajet, et seulement si vous le décidez), prévenir vos proches de confiance par SMS ou WhatsApp, et utiliser le bouton SOS qui enregistre une alerte et affiche les numéros 19, 177 et 15. Rafiq n’envoie pas de message à votre place. Ajoutez vos proches dans « Mes trajets ».";
     case "drivers":
-      return "Les conducteurs peuvent s’inscrire avec n’importe quelle adresse e-mail. La recherche et la réservation de places sont réservées aux étudiants de l’ENSA Tanger (adresse @etu.uae.ac.ma).";
+      return "À la création du compte, vous choisissez Étudiant (chercher et réserver) ou Conducteur (publier des trajets). Avec une adresse @etu.uae.ac.ma, vous pouvez choisir l’un ou l’autre et changer ensuite depuis « Mes trajets ». Avec toute autre adresse e-mail, le compte est Conducteur uniquement.";
     case "how":
       return "Rafiq met en relation des étudiants de l’ENSA Tanger et des conducteurs. Le conducteur publie son itinéraire ; vous indiquez où vous êtes et l’heure d’arrivée, et Rafiq trouve un rendez-vous sur son chemin, à 200 m maximum de vous. Je peux chercher un trajet, vous dire s’il va pleuvoir, expliquer les prix et la sécurité, ou lister vos réservations.";
     case "thanks":

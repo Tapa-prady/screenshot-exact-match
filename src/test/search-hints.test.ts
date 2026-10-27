@@ -3,13 +3,16 @@ import { shortAddress } from "@/lib/address";
 
 let rows: unknown[] = [];
 let verified = true;
+let accountType = "student";
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
           limit: async () => ({ data: rows, error: null }),
-          maybeSingle: async () => ({ data: table === "profiles" ? { verified } : null }),
+          maybeSingle: async () => ({
+            data: table === "profiles" ? { verified, account_type: accountType } : null,
+          }),
         }),
       }),
     }),
@@ -33,6 +36,7 @@ const query = {
 
 beforeEach(() => {
   verified = true;
+  accountType = "student";
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "key");
   vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
 });
@@ -90,7 +94,13 @@ describe("searchRides explains an empty answer", () => {
     verified = false;
     rows = [{ ...base, id: "t3", driver_id: "other" }];
     const { searchRides } = await import("@/lib/routing.server");
-    expect((await searchRides(ME, query)).error).toMatch(/réservées aux étudiants/);
+    expect((await searchRides(ME, query)).error).toMatch(/réservées aux comptes Étudiant/);
+  });
+  it("keeps search for student accounts: a driver-mode account is told to switch", async () => {
+    accountType = "driver";
+    rows = [{ ...base, id: "t5", driver_id: "other" }];
+    const { searchRides } = await import("@/lib/routing.server");
+    expect((await searchRides(ME, query)).error).toMatch(/comptes Étudiant/);
   });
   it("fails loudly, not with an empty list, when the server key is missing", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");

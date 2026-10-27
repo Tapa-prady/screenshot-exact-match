@@ -36,7 +36,7 @@ describe("On-route meeting points", () => {
     expect(match?.meetingPoint[0]).toBeCloseTo(-5.75, 4);
     expect(match?.meetingPoint[1]).toBeCloseTo(35.7, 4);
     expect(match?.passengerDistanceKm).toBeCloseTo(10, 1);
-    expect(match?.priceDh).toBe(20);
+    expect(match?.priceDh).toBe(15);
     expect(route.coordinates).toEqual(before);
   });
   it("accepts a verified pedestrian route of exactly 200 m", async () => {

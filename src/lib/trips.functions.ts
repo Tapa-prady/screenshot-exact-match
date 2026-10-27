@@ -1,13 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
+import { shortAddress } from "./address";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
 import { findRideMatches } from "./ride-matching";
 import { moroccoInstant, tripRunsOnDate } from "./route-adapter";
 import { clockTime, coordinate, isoDate } from "./schemas";
 import {
-  isVerifiedStudent,
+  DRIVERS_ONLY,
+  isDriverAccount,
+  isStudentAccount,
   routeRequest,
   STUDENTS_ONLY,
   verifiedGeometry,
@@ -20,7 +23,7 @@ const place = z.object({
     .string()
     .trim()
     .min(3)
-    .transform((value) => value.slice(0, 200)),
+    .transform((value) => shortAddress(value)),
   coordinates: coordinate,
 });
 
@@ -52,6 +55,7 @@ export const publishTrip = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const fail = (error: string) => ({ ok: false as const, error });
     try {
+      if (!(await isDriverAccount(context.userId))) return fail(DRIVERS_ONLY);
       if (data.oneOffDate && moroccoInstant(data.oneOffDate, data.departureTime) <= Date.now()) {
         return fail("Choisissez une date et une heure de départ futures.");
       }
@@ -148,7 +152,7 @@ export const bookRide = createServerFn({ method: "POST" })
     const fail = (error: string) => ({ ok: false as const, error });
     try {
       const deadline = moroccoInstant(data.date, data.arrival);
-      if (!(await isVerifiedStudent(context.userId))) return fail(STUDENTS_ONLY);
+      if (!(await isStudentAccount(context.userId))) return fail(STUDENTS_ONLY);
       if (deadline <= Date.now()) return fail("Choisissez une heure d’arrivée future.");
       const db =
         process.env["SUPABASE_SERVICE_ROLE_KEY"] && process.env["SUPABASE_URL"]

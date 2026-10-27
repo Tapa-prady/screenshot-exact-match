@@ -1,3 +1,5 @@
+import { RoleStatus } from "@/components/RoleSwitch";
+import { shortAddress } from "@/lib/address";
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,7 +39,7 @@ const STATUS: Record<string, string> = {
 const WEEKDAYS = ["", "lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
 const dayLabel = (date: string) => format(parseISO(date), "EEEE d MMMM", { locale: fr });
 const clock = (time: string | null) => (time ?? "").slice(0, 5);
-const shortLabel = (label: string) => label.split(",")[0] ?? label;
+const shortLabel = (label: string) => shortAddress(label).split(",")[0] ?? label;
 const MAX_CONTACTS = 5;
 
 async function names(ids: string[]): Promise<Record<string, string>> {
@@ -192,6 +194,7 @@ function MyTripsPage() {
       <SiteHeader />
       <div className="mx-auto max-w-3xl space-y-10 px-5 py-8">
         <h2 className="font-display text-2xl font-bold">Mes trajets</h2>
+        <RoleStatus />
         {!account.ready && (
           <p className="text-sm text-muted-foreground" role="status">
             Chargement…
@@ -267,11 +270,17 @@ function MyTripsPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button asChild variant="soft" size="sm">
                           <Link to="/trajet/$bookingId" params={{ bookingId: item.id }}>
-                            {item.status === "completed" ? "Noter le conducteur" : "Suivre le trajet"}
+                            {item.status === "completed"
+                              ? "Noter le conducteur"
+                              : "Suivre le trajet"}
                           </Link>
                         </Button>
                         {item.status === "confirmed" && (
-                          <Button variant="outline" size="sm" onClick={() => cancelBooking(item.id)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => cancelBooking(item.id)}
+                          >
                             Annuler
                           </Button>
                         )}

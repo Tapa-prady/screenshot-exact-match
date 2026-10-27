@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoleChooser } from "@/components/RoleChooser";
+import { RoleSwitch } from "@/components/RoleSwitch";
 import { SiteHeader } from "@/components/SiteHeader";
 import { searchAddress, searchRealRides } from "@/lib/routing.functions";
 import { bookRide } from "@/lib/trips.functions";
@@ -158,6 +159,9 @@ export function RideSearch() {
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div id="recherche">
           <h2 className="font-display text-2xl font-bold">Où allez-vous ?</h2>
+          <div className="mt-3">
+            <RoleSwitch needs="student" />
+          </div>
           <form onSubmit={submit} className="mt-6 space-y-5">
             <div>
               <label

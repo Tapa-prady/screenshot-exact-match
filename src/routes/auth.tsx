@@ -41,11 +41,15 @@ function AuthPage() {
   const { redirect: after } = Route.useSearch();
   const [mode, setMode] = useState<"in" | "up" | "forgot">("in");
   const [firstName, setFirstName] = useState("");
+  const [wanted, setWanted] = useState<"student" | "driver">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  const institutional = email.trim().toLowerCase().endsWith(DOMAIN);
+  const accountType: "student" | "driver" = institutional ? wanted : "driver";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -70,7 +74,7 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { first_name: firstName.trim() },
+            data: { first_name: firstName.trim(), account_type: accountType },
           },
         });
         if (error) throw error;
@@ -141,6 +145,43 @@ function AuthPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
+        {mode === "up" && (
+          <fieldset>
+            <legend className="mb-2 text-sm font-semibold">Je crée un compte pour</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={accountType === "student" ? "default" : "outline"}
+                className="h-auto whitespace-normal py-3"
+                aria-pressed={accountType === "student"}
+                disabled={!institutional}
+                onClick={() => setWanted("student")}
+              >
+                <span>
+                  <b className="block">Étudiant</b>
+                  <span className="text-xs font-normal">je cherche un trajet</span>
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={accountType === "driver" ? "default" : "outline"}
+                className="h-auto whitespace-normal py-3"
+                aria-pressed={accountType === "driver"}
+                onClick={() => setWanted("driver")}
+              >
+                <span>
+                  <b className="block">Conducteur</b>
+                  <span className="text-xs font-normal">je propose des trajets</span>
+                </span>
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {institutional
+                ? "Avec votre adresse étudiante, vous pouvez choisir. Vous pourrez changer de rôle plus tard."
+                : "Les adresses autres que @etu.uae.ac.ma créent un compte Conducteur : seuls les étudiants cherchent et réservent."}
+            </p>
+          </fieldset>
+        )}
         {mode !== "forgot" && (
           <div>
             <label htmlFor="pw" className="mb-2 block text-sm font-semibold">

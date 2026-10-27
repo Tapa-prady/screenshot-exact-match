@@ -23,3 +23,6 @@
 - [x] Entrée conducteur visible sur l’accueil, véhicule demandé à la publication, conducteur (prénom, note, voiture) affiché dans les résultats, plaque montrée après réservation.
 - [x] Conducteur : « Démarrer » puis « Terminer » le trajet depuis l’écran du trajet ; avis (1 à 5 étoiles) des deux côtés une fois terminé.
 - [ ] Vérifier dans Supabase que la confirmation par e-mail est activée à l’inscription.
+- [x] Rôle choisi à la création du compte : adresse @etu.uae.ac.ma = Étudiant ou Conducteur (modifiable depuis « Mes trajets »), autre adresse = Conducteur uniquement (`drizzle/migrations/0004_account_roles_and_fares.sql`, vérifié aussi côté base).
+- [x] Tarifs abaissés : 2 DH/km jusqu’à 5 km, 1 DH/km de 5 à 10 km, 0,5 DH/km au-delà ; minimum 5 DH, maximum 20 DH (code et base).
+- [x] Adresses raccourcies partout (saisie, enregistrement, affichage).

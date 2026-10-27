@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Car, CircleCheck, GraduationCap, LoaderCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddressField, type Place } from "@/components/AddressField";
+import { RoleSwitch } from "@/components/RoleSwitch";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAccount } from "@/hooks/use-account";
 import { supabase } from "@/integrations/supabase/client";
@@ -121,8 +122,11 @@ function PublishPage() {
       <SiteHeader />
       <div className="mx-auto max-w-xl px-5 py-8">
         <h2 className="font-display text-2xl font-bold">Proposer un trajet</h2>
+        <div className="mt-3">
+          <RoleSwitch needs="driver" />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Vous partagez vos frais d’essence : le prix est calculé automatiquement, entre 7 et 25 DH
+          Vous partagez vos frais d’essence : le prix est calculé automatiquement, entre 5 et 20 DH
           par passager.
         </p>
         {!account.ready && (
@@ -233,7 +237,8 @@ function PublishPage() {
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Les passagers voient la marque et la couleur ; la plaque n’est montrée qu’après réservation.
+                Les passagers voient la marque et la couleur ; la plaque n’est montrée qu’après
+                réservation.
               </p>
             </fieldset>
             <fieldset>
