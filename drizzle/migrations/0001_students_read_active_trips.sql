@@ -1,0 +1,1 @@
+CREATE POLICY "Students read active trips" ON public.trips FOR SELECT TO authenticated USING (active = true);

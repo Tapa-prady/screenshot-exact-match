@@ -82,7 +82,7 @@ export function RideSearch() {
           <img src={logo.url} alt="" className="size-12 rounded-xl" />
           <h1 className="font-display text-2xl font-bold">Rafiq</h1>
           <span className="ms-auto hidden items-center gap-2 text-sm text-primary sm:flex"><GraduationCap className="size-5" /><span>ENSA Tanger</span></span>
-          {account ? <Button variant="outline" size="sm" className="ms-auto sm:ms-0" onClick={signOut}>{account} · Déconnexion</Button> : <Button asChild variant="soft" size="sm" className="ms-auto sm:ms-0"><Link to="/auth">Connexion</Link></Button>}
+          {account && <Button asChild variant="cta" size="sm" className="ms-auto sm:ms-0"><Link to="/publier">Publier</Link></Button>}{account ? <Button variant="outline" size="sm" onClick={signOut}>{account} · Déconnexion</Button> : <Button asChild variant="soft" size="sm" className="ms-auto sm:ms-0"><Link to="/auth">Connexion</Link></Button>}
         </div>
       </header>
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
