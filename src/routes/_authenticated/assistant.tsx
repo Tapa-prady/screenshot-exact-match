@@ -10,7 +10,7 @@ import type { ChatContext } from "@/lib/assistant";
 import { askRafiq } from "@/lib/assistant.functions";
 import { bookRide } from "@/lib/trips.functions";
 
-export const Route = createFileRoute("/assistant")({
+export const Route = createFileRoute("/_authenticated/assistant")({
   head: () => ({
     meta: [
       { title: "Rafiq IA — Rafiq" },

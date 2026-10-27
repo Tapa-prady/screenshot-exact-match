@@ -114,3 +114,11 @@ describe("walkingResolver", () => {
     expect(unavailable).toHaveBeenCalledOnce();
   });
 });
+
+describe("routeFromPickup", () => {
+  it("never returns the part of the path before the pickup", async () => {
+    const { routeFromPickup } = await import("@/lib/routing.server");
+    const path: [number, number][] = [[-5.8, 35.7], [-5.79, 35.71], [-5.78, 35.72], [-5.77, 35.73]];
+    expect(routeFromPickup(path, [-5.785, 35.715])).toEqual([[-5.785, 35.715], [-5.78, 35.72], [-5.77, 35.73]]);
+  });
+});

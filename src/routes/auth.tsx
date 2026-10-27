@@ -1,11 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/rafiq_logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string | undefined } => ({
+    // Only same-site paths: never follow a link to another website after login.
+    redirect: typeof search["redirect"] === "string" && /^\/(?!\/)/.test(search["redirect"]) ? search["redirect"] : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Connexion — Rafiq" },
@@ -30,7 +34,8 @@ const field =
   "h-12 w-full rounded-xl border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function AuthPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { redirect: after } = Route.useSearch();
   const [mode, setMode] = useState<"in" | "up" | "forgot">("in");
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
@@ -76,7 +81,7 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
         if (error) throw error;
-        navigate({ to: "/", replace: true });
+        router.history.replace(after ?? "/");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";

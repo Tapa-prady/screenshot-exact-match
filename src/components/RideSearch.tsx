@@ -15,6 +15,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RoleChooser } from "@/components/RoleChooser";
 import { SiteHeader } from "@/components/SiteHeader";
 import { searchAddress, searchRealRides } from "@/lib/routing.functions";
 import { bookRide } from "@/lib/trips.functions";
@@ -153,8 +154,9 @@ export function RideSearch() {
           setBooked(null);
         }}
       />
+      <RoleChooser />
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div>
+        <div id="recherche">
           <h2 className="font-display text-2xl font-bold">Où allez-vous ?</h2>
           <form onSubmit={submit} className="mt-6 space-y-5">
             <div>
@@ -329,7 +331,12 @@ export function RideSearch() {
                     <span className="flex w-full justify-between">
                       <span className="flex items-center gap-2">
                         <Car />
-                        Trajet {index + 1}
+                        {results.drivers[match.tripId]?.firstName ?? `Trajet ${index + 1}`}
+                        {results.drivers[match.tripId]?.rating ? (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ★ {results.drivers[match.tripId]?.rating.toFixed(1)}
+                          </span>
+                        ) : null}
                       </span>
                       <b>{match.priceDh} DH</b>
                     </span>
@@ -345,6 +352,9 @@ export function RideSearch() {
                     </span>
                     <span className="text-xs">
                       Arrivée {formatInTimeZone(match.arrivalTime, "Africa/Casablanca", "HH:mm")}
+                      {results.drivers[match.tripId]?.vehicle
+                        ? ` · ${results.drivers[match.tripId]?.vehicle}`
+                        : ""}
                     </span>
                   </Button>
                 ))}

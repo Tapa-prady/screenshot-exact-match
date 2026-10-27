@@ -163,6 +163,36 @@ async function getAdminClient(
   return fallback;
 }
 
+/**
+ * Part of a driver's path from the pickup onwards. The beginning (usually the driver's home)
+ * is never sent to passengers.
+ */
+export function routeFromPickup(coordinates: Coordinates[], pickup: Coordinates): Coordinates[] {
+  const distanceToSegment = (from: Coordinates, to: Coordinates) => {
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const length = dx * dx + dy * dy;
+    const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((pickup[0] - from[0]) * dx + (pickup[1] - from[1]) * dy) / length));
+    return (from[0] + t * dx - pickup[0]) ** 2 + (from[1] + t * dy - pickup[1]) ** 2;
+  };
+  let best = 0;
+  let bestDistance = Infinity;
+  for (let index = 0; index < coordinates.length - 1; index++) {
+    const distance = distanceToSegment(coordinates[index] as Coordinates, coordinates[index + 1] as Coordinates);
+    if (distance < bestDistance) {
+      best = index;
+      bestDistance = distance;
+    }
+  }
+  return [pickup, ...coordinates.slice(best + 1)];
+}
+
+export interface DriverCard {
+  firstName: string;
+  rating: number;
+  vehicle: string | null;
+}
+
 /** The one search implementation: used by the search screen and by the assistant. */
 export async function searchRides(
   supabase: SupabaseClient<Database>,
@@ -172,6 +202,7 @@ export async function searchRides(
   const empty = {
     matches: [] as RideMatch[],
     routes: [] as { id: string; coordinates: Coordinates[] }[],
+    drivers: {} as Record<string, DriverCard>,
     error: null as string | null,
     unavailableCount: 0,
   };
@@ -193,6 +224,7 @@ export async function searchRides(
       .slice(0, 8);
     if (candidates.length === 0) return empty;
     const routes: DriverRoute[] = [];
+    const drivers: Record<string, DriverCard> = {};
     let unavailableCount = 0;
     for (const trip of candidates) {
       try {
@@ -203,9 +235,17 @@ export async function searchRides(
         }
         const { data: profile } = await db
           .from("profiles")
-          .select("rating_avg")
+          .select("rating_avg, first_name")
           .eq("id", trip.driver_id)
           .maybeSingle();
+        const { data: car } = trip.vehicle_id
+          ? await db.from("vehicles").select("brand, color").eq("id", trip.vehicle_id).maybeSingle()
+          : { data: null };
+        drivers[trip.id] = {
+          firstName: profile?.first_name || "Conducteur",
+          rating: Number(profile?.rating_avg ?? 0),
+          vehicle: car ? `${car.brand} ${car.color}` : null,
+        };
         // Capacity is rechecked by the booking trigger. Other passengers' rows are not publicly exposed.
         routes.push({
           id: trip.id,
@@ -240,9 +280,13 @@ export async function searchRides(
     );
     return {
       matches,
-      routes: routes
-        .filter((route) => matches.some((match) => match.tripId === route.id))
-        .map((route) => ({ id: route.id, coordinates: route.coordinates })),
+      routes: routes.flatMap((route) => {
+        const match = matches.find((item) => item.tripId === route.id);
+        return match
+          ? [{ id: route.id, coordinates: routeFromPickup(route.coordinates, match.meetingPoint) }]
+          : [];
+      }),
+      drivers,
       error: null,
       unavailableCount,
     };

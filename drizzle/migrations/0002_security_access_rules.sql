@@ -31,6 +31,8 @@ CREATE POLICY "Read own profile or ride partners" ON public.profiles
 
 -- 2. Trips: restrict read access to the driver or passengers with an existing booking.
 DROP POLICY IF EXISTS "Students read trips" ON public.trips;
+-- Added later by Lovable (0001_students_read_active_trips): same problem, every active trip readable by everyone.
+DROP POLICY IF EXISTS "Students read active trips" ON public.trips;
 
 CREATE POLICY "Driver reads own trips" ON public.trips
   FOR SELECT TO authenticated

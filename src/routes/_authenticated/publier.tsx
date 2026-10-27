@@ -1,15 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CircleCheck, GraduationCap, LoaderCircle, MapPin } from "lucide-react";
+import { Car, CircleCheck, GraduationCap, LoaderCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddressField, type Place } from "@/components/AddressField";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAccount } from "@/hooks/use-account";
+import { supabase } from "@/integrations/supabase/client";
 import { calculateRidePrice } from "@/lib/ride-pricing";
 import { publishTrip } from "@/lib/trips.functions";
 
-export const Route = createFileRoute("/publier")({
+export const Route = createFileRoute("/_authenticated/publier")({
   head: () => ({
     meta: [
       { title: "Publier un trajet — Rafiq" },
@@ -52,9 +53,25 @@ function PublishPage() {
   const [date, setDate] = useState("");
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [seats, setSeats] = useState(3);
+  const [vehicle, setVehicle] = useState({ brand: "", color: "", plate: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ routeKm: number; routeMinutes: number } | null>(null);
+
+  // Reuse the driver's last car so a recurring driver only types it once.
+  useEffect(() => {
+    if (!account.userId) return;
+    void supabase
+      .from("vehicles")
+      .select("brand, color, plate")
+      .eq("owner_id", account.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setVehicle((current) => (current.plate ? current : data));
+      });
+  }, [account.userId]);
 
   function toggleDay(day: number) {
     setDays((current) =>
@@ -87,6 +104,7 @@ function PublishPage() {
           weekdays: once ? [] : days,
           oneOffDate: once ? date : null,
           seats,
+          vehicle,
         },
       });
       if (result.ok) setDone({ routeKm: result.routeKm, routeMinutes: result.routeMinutes });
@@ -183,6 +201,41 @@ function PublishPage() {
                 </select>
               </div>
             </div>
+            <fieldset>
+              <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <Car className="size-4 text-primary" />
+                Votre véhicule
+              </legend>
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  aria-label="Marque"
+                  placeholder="Marque"
+                  required
+                  className={fieldClass}
+                  value={vehicle.brand}
+                  onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value })}
+                />
+                <input
+                  aria-label="Couleur"
+                  placeholder="Couleur"
+                  required
+                  className={fieldClass}
+                  value={vehicle.color}
+                  onChange={(event) => setVehicle({ ...vehicle, color: event.target.value })}
+                />
+                <input
+                  aria-label="Plaque d’immatriculation"
+                  placeholder="Plaque"
+                  required
+                  className={fieldClass}
+                  value={vehicle.plate}
+                  onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value })}
+                />
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Les passagers voient la marque et la couleur ; la plaque n’est montrée qu’après réservation.
+              </p>
+            </fieldset>
             <fieldset>
               <legend className="mb-2 text-sm font-semibold">Fréquence</legend>
               <div className="grid grid-cols-2 gap-2">

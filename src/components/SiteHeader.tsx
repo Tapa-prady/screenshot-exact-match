@@ -49,7 +49,7 @@ export function SiteHeader({ onSignOut }: { onSignOut?: () => void }) {
             </Button>
           ) : (
             <Button asChild variant="soft" size="sm">
-              <Link to="/auth">Connexion</Link>
+              <Link to="/auth">Connexion / Inscription</Link>
             </Button>
           )}
         </div>

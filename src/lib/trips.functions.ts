@@ -25,6 +25,11 @@ export const publishTrip = createServerFn({ method: "POST" })
         weekdays: z.array(z.number().int().min(1).max(7)).max(7),
         oneOffDate: isoDate.nullable(),
         seats: z.number().int().min(1).max(6),
+        vehicle: z.object({
+          brand: z.string().trim().min(1).max(60),
+          color: z.string().trim().min(1).max(30),
+          plate: z.string().trim().min(2).max(20),
+        }),
       })
       .refine((value) => value.oneOffDate !== null || value.weekdays.length > 0, {
         message: "Choisissez au moins un jour.",
@@ -68,10 +73,29 @@ export const publishTrip = createServerFn({ method: "POST" })
       }
       // Persist the provider's exact geometry as [lat, lng]; search verifies against the same request.
       const stored = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]) as Json;
+      // One vehicle row per plate and driver: reused when the same car publishes again.
+      const plate = data.vehicle.plate.toUpperCase();
+      const { data: known } = await context.supabase
+        .from("vehicles")
+        .select("id")
+        .eq("owner_id", context.userId)
+        .eq("plate", plate)
+        .maybeSingle();
+      let vehicleId = known?.id;
+      if (!vehicleId) {
+        const { data: created, error: vehicleError } = await context.supabase
+          .from("vehicles")
+          .insert({ owner_id: context.userId, ...data.vehicle, plate, seats: data.seats })
+          .select("id")
+          .single();
+        if (vehicleError) return fail("Le véhicule n’a pas pu être enregistré.");
+        vehicleId = created.id;
+      }
       const { data: row, error } = await context.supabase
         .from("trips")
         .insert({
           driver_id: context.userId,
+          vehicle_id: vehicleId,
           origin_label: data.origin.label,
           origin_lng: data.origin.coordinates[0],
           origin_lat: data.origin.coordinates[1],

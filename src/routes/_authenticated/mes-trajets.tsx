@@ -11,7 +11,7 @@ import { useAccount } from "@/hooks/use-account";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeMoroccanPhone } from "@/lib/trip-share";
 
-export const Route = createFileRoute("/mes-trajets")({
+export const Route = createFileRoute("/_authenticated/mes-trajets")({
   head: () => ({
     meta: [
       { title: "Mes trajets — Rafiq" },

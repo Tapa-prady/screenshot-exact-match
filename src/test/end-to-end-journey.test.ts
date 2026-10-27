@@ -148,11 +148,11 @@ describe("Rafiq — Parcours complet de bout en bout (End-to-End Journey)", () =
       const phone = normalizeMoroccanPhone("06 12 34 56 78");
       expect(phone).toBe("+212612345678");
 
-      const wa = whatsappHref(phone, message);
+      const wa = whatsappHref(phone as string, message);
       expect(wa).toContain("https://wa.me/212612345678");
       expect(wa).toContain(encodeURIComponent(message));
 
-      const sms = smsHref(phone, message);
+      const sms = smsHref(phone as string, message);
       expect(sms).toContain("sms:+212612345678");
     });
   });

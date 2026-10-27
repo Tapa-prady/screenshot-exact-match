@@ -14,7 +14,7 @@ import { EMERGENCY_NUMBERS, positionMessage, smsHref, whatsappHref } from "@/lib
 
 const LiveMap = lazy(() => import("@/components/LiveMap"));
 
-export const Route = createFileRoute("/trajet/$bookingId")({
+export const Route = createFileRoute("/_authenticated/trajet/$bookingId")({
   head: () => ({
     meta: [
       { title: "Voyager — Rafiq" },
