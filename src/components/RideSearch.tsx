@@ -312,7 +312,7 @@ export function RideSearch() {
               </h3>
               {results.matches.length === 0 && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Aucun rendez-vous confirmé à 200 m maximum pour cette arrivée.
+                  {results.hint ?? "Aucun rendez-vous confirmé à 200 m maximum pour cette arrivée."}
                 </p>
               )}
               {results.unavailableCount > 0 && (

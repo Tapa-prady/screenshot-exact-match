@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { shortAddress } from "./address";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { clockTime, coordinate, isoDate } from "./schemas";
 import { headers, pause, searchRides } from "./routing.server";
@@ -25,7 +26,7 @@ export const searchAddress = createServerFn({ method: "POST" })
         .parse(await response.json());
       return {
         places: places.map((place) => ({
-          label: place.display_name,
+          label: shortAddress(place.display_name),
           coordinates: coordinate.parse([Number(place.lon), Number(place.lat)]),
         })),
         error: null,
@@ -43,4 +44,4 @@ export const searchRealRides = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({ origin: coordinate, destination: coordinate, date: isoDate, arrival: clockTime }),
   )
-  .handler(async ({ data, context }) => searchRides(context.supabase, context.userId, data));
+  .handler(async ({ data, context }) => searchRides(context.userId, data));

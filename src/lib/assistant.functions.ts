@@ -99,7 +99,7 @@ export const askRafiq = createServerFn({ method: "POST" })
             text =
               "L’adresse de l’école n’a pas pu être trouvée pour le moment. Réessayez dans un instant.";
           else {
-            const result = await searchRides(context.supabase, context.userId, {
+            const result = await searchRides(context.userId, {
               origin: origin.coordinates,
               destination: destination.coordinates,
               date,

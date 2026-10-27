@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { shortAddress } from "./address";
 import { coordinate } from "./schemas";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -146,21 +147,21 @@ export async function geocodeFirst(
     .parse(await response.json());
   if (!place) return null;
   const parsed = coordinate.safeParse([Number(place.lon), Number(place.lat)]);
-  return parsed.success ? { label: place.display_name, coordinates: parsed.data } : null;
+  return parsed.success
+    ? { label: shortAddress(place.display_name), coordinates: parsed.data }
+    : null;
 }
 
-async function getAdminClient(
-  fallback: SupabaseClient<Database>,
-): Promise<SupabaseClient<Database>> {
-  if (process.env["SUPABASE_SERVICE_ROLE_KEY"] && process.env["SUPABASE_URL"]) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      return supabaseAdmin;
-    } catch {
-      return fallback;
-    }
+/**
+ * Ride search must read every driver's trips, which members cannot do themselves.
+ * A missing server key must be an error, never a silent "0 trips".
+ */
+async function getAdminClient(): Promise<SupabaseClient<Database>> {
+  if (!process.env["SUPABASE_SERVICE_ROLE_KEY"] || !process.env["SUPABASE_URL"]) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing on the server");
   }
-  return fallback;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
 }
 
 /**
@@ -172,13 +173,22 @@ export function routeFromPickup(coordinates: Coordinates[], pickup: Coordinates)
     const dx = to[0] - from[0];
     const dy = to[1] - from[1];
     const length = dx * dx + dy * dy;
-    const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((pickup[0] - from[0]) * dx + (pickup[1] - from[1]) * dy) / length));
+    const t =
+      length === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(1, ((pickup[0] - from[0]) * dx + (pickup[1] - from[1]) * dy) / length),
+          );
     return (from[0] + t * dx - pickup[0]) ** 2 + (from[1] + t * dy - pickup[1]) ** 2;
   };
   let best = 0;
   let bestDistance = Infinity;
   for (let index = 0; index < coordinates.length - 1; index++) {
-    const distance = distanceToSegment(coordinates[index] as Coordinates, coordinates[index + 1] as Coordinates);
+    const distance = distanceToSegment(
+      coordinates[index] as Coordinates,
+      coordinates[index + 1] as Coordinates,
+    );
     if (distance < bestDistance) {
       best = index;
       bestDistance = distance;
@@ -195,7 +205,6 @@ export interface DriverCard {
 
 /** The one search implementation: used by the search screen and by the assistant. */
 export async function searchRides(
-  supabase: SupabaseClient<Database>,
   userId: string,
   data: { origin: Coordinates; destination: Coordinates; date: string; arrival: string },
 ) {
@@ -204,25 +213,39 @@ export async function searchRides(
     routes: [] as { id: string; coordinates: Coordinates[] }[],
     drivers: {} as Record<string, DriverCard>,
     error: null as string | null,
+    /** Why nothing was found, in plain words. */
+    hint: null as string | null,
     unavailableCount: 0,
   };
   try {
     const deadline = moroccoInstant(data.date, data.arrival);
     if (deadline <= Date.now())
       return { ...empty, error: "Choisissez une heure d’arrivée future." };
-    const db = await getAdminClient(supabase);
+    const db = await getAdminClient();
     const { data: trips, error } = await db.from("trips").select("*").eq("active", true).limit(50);
     if (error) throw error;
-    const candidates = (trips ?? [])
+    const all = trips ?? [];
+    const others = all.filter((trip) => trip.driver_id !== userId);
+    const onDate = others.filter((trip) => tripRunsOnDate(trip, data.date));
+    // The campus is wide and two people may pick different map points for it: allow about 400 m.
+    const candidates = onDate
       .filter(
         (trip) =>
-          tripRunsOnDate(trip, data.date) &&
-          trip.driver_id !== userId &&
-          Math.abs(trip.dest_lat - data.destination[1]) < 0.001 &&
-          Math.abs(trip.dest_lng - data.destination[0]) < 0.001,
+          Math.abs(trip.dest_lat - data.destination[1]) < 0.004 &&
+          Math.abs(trip.dest_lng - data.destination[0]) < 0.004,
       )
       .slice(0, 8);
-    if (candidates.length === 0) return empty;
+    if (candidates.length === 0) {
+      const hint =
+        all.length === 0
+          ? "Aucun conducteur n’a publié de trajet pour le moment."
+          : others.length === 0
+            ? "Le seul trajet publié est le vôtre : un conducteur ne le voit pas dans la recherche. Testez avec un autre compte."
+            : onDate.length === 0
+              ? "Des trajets existent, mais aucun ne circule ce jour-là."
+              : "Des trajets existent, mais pas vers cette arrivée. Choisissez la même adresse d’arrivée que le conducteur.";
+      return { ...empty, hint };
+    }
     const routes: DriverRoute[] = [];
     const drivers: Record<string, DriverCard> = {};
     let unavailableCount = 0;
@@ -288,6 +311,10 @@ export async function searchRides(
       }),
       drivers,
       error: null,
+      hint:
+        matches.length === 0 && unavailableCount === 0
+          ? `${candidates.length} trajet${candidates.length > 1 ? "s" : ""} vers cette arrivée, mais aucun ne passe à 200 m maximum de votre départ à une heure compatible avec votre arrivée.`
+          : null,
       unavailableCount,
     };
   } catch {
