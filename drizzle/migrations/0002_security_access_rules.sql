@@ -1,6 +1,8 @@
 -- Rafiq · 0002 · security access rules
 -- Apply once, after 0000_rafiq_core_schema.sql and 0001_security_guards.sql (Supabase / Lovable Cloud SQL editor).
 --
+-- Safe to run more than once (every policy is dropped before being created).
+--
 -- Why: Fixes Lovable critical findings:
 -- 1. "Exposed personal & sensitive data" on public.profiles
 -- 2. "Some access rules let everyone through" on public.trips, public.profiles, public.reviews
@@ -17,6 +19,7 @@
 -- 1. Profiles: restrict read access to own profile or fellow travelers on the same booking.
 DROP POLICY IF EXISTS "Students read profiles" ON public.profiles;
 
+DROP POLICY IF EXISTS "Read own profile or ride partners" ON public.profiles;
 CREATE POLICY "Read own profile or ride partners" ON public.profiles
   FOR SELECT TO authenticated
   USING (
@@ -34,10 +37,12 @@ DROP POLICY IF EXISTS "Students read trips" ON public.trips;
 -- Added later by Lovable (0001_students_read_active_trips): same problem, every active trip readable by everyone.
 DROP POLICY IF EXISTS "Students read active trips" ON public.trips;
 
+DROP POLICY IF EXISTS "Driver reads own trips" ON public.trips;
 CREATE POLICY "Driver reads own trips" ON public.trips
   FOR SELECT TO authenticated
   USING (auth.uid() = driver_id);
 
+DROP POLICY IF EXISTS "Passenger reads booked trips" ON public.trips;
 CREATE POLICY "Passenger reads booked trips" ON public.trips
   FOR SELECT TO authenticated
   USING (
@@ -50,6 +55,7 @@ CREATE POLICY "Passenger reads booked trips" ON public.trips
 -- 3. Reviews: restrict read access to author, target, or participants of that booking.
 DROP POLICY IF EXISTS "Students read reviews" ON public.reviews;
 
+DROP POLICY IF EXISTS "Parties read reviews" ON public.reviews;
 CREATE POLICY "Parties read reviews" ON public.reviews
   FOR SELECT TO authenticated
   USING (
