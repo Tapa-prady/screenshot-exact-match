@@ -51,7 +51,7 @@ export async function modelIntent(message: string, today: string): Promise<Inten
           responseSchema,
         },
       }),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(6000),
     },
   );
   if (!response.ok) {

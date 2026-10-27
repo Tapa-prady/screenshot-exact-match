@@ -90,19 +90,14 @@ export const askRafiq = createServerFn({ method: "POST" })
             wanted.date ??
             (moroccoInstant(today, wanted.arrival) > Date.now() ? today : addDays(today, 1));
           next = { date, arrival: wanted.arrival, originText: wanted.originText };
-          const [origin, destination] = [
-            await geocodeFirst(wanted.originText),
-            await geocodeFirst("ENSA Tanger"),
-          ];
+          const origin = await geocodeFirst(wanted.originText);
           if (!origin)
             text = `Je n’ai pas trouvé « ${wanted.originText} » à Tanger. Pouvez-vous préciser l’adresse ?`;
-          else if (!destination)
-            text =
-              "L’adresse de l’école n’a pas pu être trouvée pour le moment. Réessayez dans un instant.";
           else {
+            // Arrival = the school: no extra address lookup, the drivers' own destination is used.
             const result = await searchRides(context.userId, {
               origin: origin.coordinates,
-              destination: destination.coordinates,
+              destination: null,
               date,
               arrival: wanted.arrival,
             });
@@ -119,6 +114,12 @@ export const askRafiq = createServerFn({ method: "POST" })
                   priceDh: best.priceDh,
                   pickupTime: best.pickupTime,
                 };
+              else if (result.hint) text += ` ${result.hint}`;
+              // "…un trajet demain 7h30 et la météo" : answer both in one go.
+              if (/pluie|pleut|pleuv|m[eé]t[eé]o|parapluie/i.test(data.message)) {
+                const forecast = await forecastFor(date, wanted.arrival);
+                text += `\nMétéo à ${wanted.arrival} : ${weatherAdvice(forecast.probability, forecast.millimetres)}`;
+              }
             }
           }
         }
@@ -157,7 +158,8 @@ export const askRafiq = createServerFn({ method: "POST" })
           text = `Prévision pour le ${wanted.date} à ${wanted.arrival} : ${weatherAdvice(forecast.probability, forecast.millimetres)}`;
         }
       }
-    } catch {
+    } catch (error) {
+      console.error("askRafiq failed", error);
       text =
         "Je n’ai pas pu terminer cette recherche pour le moment. Réessayez dans un instant ou utilisez la recherche classique.";
     }

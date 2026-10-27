@@ -242,10 +242,33 @@ function noMatchHint(trips: { route: unknown }[], origin: Coordinates): string {
   return `${count} passe près de votre départ, mais pas à une heure compatible : le conducteur doit partir assez tôt pour vous déposer avant l’heure d’arrivée choisie, et le départ ne doit pas être déjà passé.`;
 }
 
+/** The arrival point most published trips share (the school), or null when there is none. */
+function commonDestination(trips: { dest_lat: number; dest_lng: number }[]): Coordinates | null {
+  const groups = new Map<string, { count: number; point: Coordinates }>();
+  for (const trip of trips) {
+    const key = `${trip.dest_lat.toFixed(3)},${trip.dest_lng.toFixed(3)}`;
+    const group = groups.get(key) ?? {
+      count: 0,
+      point: [trip.dest_lng, trip.dest_lat] as Coordinates,
+    };
+    group.count++;
+    groups.set(key, group);
+  }
+  let best: { count: number; point: Coordinates } | null = null;
+  for (const group of groups.values()) if (!best || group.count > best.count) best = group;
+  return best?.point ?? null;
+}
+
 /** The one search implementation: used by the search screen and by the assistant. */
 export async function searchRides(
   userId: string,
-  data: { origin: Coordinates; destination: Coordinates; date: string; arrival: string },
+  data: {
+    origin: Coordinates;
+    /** null = "the school": the destination most drivers published for that day. */
+    destination: Coordinates | null;
+    date: string;
+    arrival: string;
+  },
 ) {
   const empty = {
     matches: [] as RideMatch[],
@@ -268,11 +291,13 @@ export async function searchRides(
     const others = all.filter((trip) => trip.driver_id !== userId);
     const onDate = others.filter((trip) => tripRunsOnDate(trip, data.date));
     // The campus is wide and two people may pick different map points for it: allow about 400 m.
+    const target = data.destination ?? commonDestination(onDate);
     const candidates = onDate
       .filter(
         (trip) =>
-          Math.abs(trip.dest_lat - data.destination[1]) < 0.004 &&
-          Math.abs(trip.dest_lng - data.destination[0]) < 0.004,
+          target !== null &&
+          Math.abs(trip.dest_lat - target[1]) < 0.004 &&
+          Math.abs(trip.dest_lng - target[0]) < 0.004,
       )
       .slice(0, 8);
     if (candidates.length === 0) {
@@ -286,41 +311,56 @@ export async function searchRides(
               : "Des trajets existent, mais pas vers cette arrivée. Choisissez la même adresse d’arrivée que le conducteur.";
       return { ...empty, hint };
     }
+    // Cheap local check first: only paths passing within 200 m of the passenger deserve the
+    // slow route verification (each one costs a request to the routing service).
+    const near = candidates.filter((trip) => nearestPathMeters([trip], data.origin) <= 200);
+    if (near.length === 0) return { ...empty, hint: noMatchHint(candidates, data.origin) };
     const routes: DriverRoute[] = [];
     const drivers: Record<string, DriverCard> = {};
     let unavailableCount = 0;
-    for (const trip of candidates) {
-      try {
-        const geometry = await verifiedGeometry(trip);
-        if (!geometry) {
-          unavailableCount++;
-          continue;
+    const checked = await Promise.all(
+      near.map(async (trip) => {
+        try {
+          const geometry = await verifiedGeometry(trip);
+          if (!geometry) return null;
+          const { data: profile } = await db
+            .from("profiles")
+            .select("rating_avg, first_name, verified")
+            .eq("id", trip.driver_id)
+            .maybeSingle();
+          const { data: car } = trip.vehicle_id
+            ? await db
+                .from("vehicles")
+                .select("brand, color")
+                .eq("id", trip.vehicle_id)
+                .maybeSingle()
+            : { data: null };
+          return { trip, geometry, profile, car };
+        } catch {
+          return null;
         }
-        const { data: profile } = await db
-          .from("profiles")
-          .select("rating_avg, first_name, verified")
-          .eq("id", trip.driver_id)
-          .maybeSingle();
-        const { data: car } = trip.vehicle_id
-          ? await db.from("vehicles").select("brand, color").eq("id", trip.vehicle_id).maybeSingle()
-          : { data: null };
-        drivers[trip.id] = {
-          firstName: profile?.first_name || "Conducteur",
-          student: profile?.verified ?? false,
-          rating: Number(profile?.rating_avg ?? 0),
-          vehicle: car ? `${car.brand} ${car.color}` : null,
-        };
-        // Capacity is rechecked by the booking trigger. Other passengers' rows are not publicly exposed.
-        routes.push({
-          id: trip.id,
-          ...geometry,
-          departureTime: moroccoInstant(data.date, trip.departure_time),
-          seatsAvailable: trip.seats,
-          rating: profile?.rating_avg ?? 0,
-        });
-      } catch {
+      }),
+    );
+    for (const item of checked) {
+      if (!item) {
         unavailableCount++;
+        continue;
       }
+      const { trip, geometry, profile, car } = item;
+      drivers[trip.id] = {
+        firstName: profile?.first_name || "Conducteur",
+        student: profile?.verified ?? false,
+        rating: Number(profile?.rating_avg ?? 0),
+        vehicle: car ? `${car.brand} ${car.color}` : null,
+      };
+      // Capacity is rechecked by the booking trigger. Other passengers' rows are not publicly exposed.
+      routes.push({
+        id: trip.id,
+        ...geometry,
+        departureTime: moroccoInstant(data.date, trip.departure_time),
+        seatsAvailable: trip.seats,
+        rating: profile?.rating_avg ?? 0,
+      });
     }
     const matches: RideMatch[] = [];
     // One route at a time respects community pedestrian routing's request interval.

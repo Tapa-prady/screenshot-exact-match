@@ -66,6 +66,26 @@ describe("searchRides explains an empty answer", () => {
     const { searchRides } = await import("@/lib/routing.server");
     expect((await searchRides(ME, query)).hint).toMatch(/pas vers cette arrivée/);
   });
+  it("tells a far-away passenger the distance, without calling the routing service", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    rows = [
+      {
+        ...base,
+        id: "t4",
+        driver_id: "other",
+        route: [
+          [35.76, -5.81],
+          [35.77, -5.8],
+        ],
+      },
+    ];
+    const { searchRides } = await import("@/lib/routing.server");
+    const result = await searchRides(ME, { ...query, origin: [-5.7, 35.9], destination: null });
+    expect(result.hint).toMatch(/à environ \d+ m du chemin/);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
   it("keeps search for students: an external driver gets a clear message", async () => {
     verified = false;
     rows = [{ ...base, id: "t3", driver_id: "other" }];
