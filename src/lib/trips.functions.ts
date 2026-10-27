@@ -8,7 +8,15 @@ import { moroccoInstant, tripRunsOnDate } from "./route-adapter";
 import { clockTime, coordinate, isoDate } from "./schemas";
 import { routeRequest, verifiedGeometry, walkingResolver } from "./routing.server";
 
-const place = z.object({ label: z.string().trim().min(3).max(200), coordinates: coordinate });
+const place = z.object({
+  // Map services return very long labels (street, district, city in two languages): keep the start, never reject.
+  label: z
+    .string()
+    .trim()
+    .min(3)
+    .transform((value) => value.slice(0, 200)),
+  coordinates: coordinate,
+});
 
 const MAX_ACTIVE_TRIPS = 10;
 const MIN_ROUTE_METERS = 500;
@@ -119,7 +127,8 @@ export const publishTrip = createServerFn({ method: "POST" })
         routeKm: row.route_km,
         routeMinutes: row.route_minutes,
       };
-    } catch {
+    } catch (error) {
+      console.error("publishTrip failed", error);
       return fail("La publication n’a pas abouti. Réessayez dans un instant.");
     }
   });
