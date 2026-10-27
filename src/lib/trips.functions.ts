@@ -6,7 +6,13 @@ import type { Json } from "@/integrations/supabase/types";
 import { findRideMatches } from "./ride-matching";
 import { moroccoInstant, tripRunsOnDate } from "./route-adapter";
 import { clockTime, coordinate, isoDate } from "./schemas";
-import { routeRequest, verifiedGeometry, walkingResolver } from "./routing.server";
+import {
+  isVerifiedStudent,
+  routeRequest,
+  STUDENTS_ONLY,
+  verifiedGeometry,
+  walkingResolver,
+} from "./routing.server";
 
 const place = z.object({
   // Map services return very long labels (street, district, city in two languages): keep the start, never reject.
@@ -142,6 +148,7 @@ export const bookRide = createServerFn({ method: "POST" })
     const fail = (error: string) => ({ ok: false as const, error });
     try {
       const deadline = moroccoInstant(data.date, data.arrival);
+      if (!(await isVerifiedStudent(context.userId))) return fail(STUDENTS_ONLY);
       if (deadline <= Date.now()) return fail("Choisissez une heure d’arrivée future.");
       const db =
         process.env["SUPABASE_SERVICE_ROLE_KEY"] && process.env["SUPABASE_URL"]

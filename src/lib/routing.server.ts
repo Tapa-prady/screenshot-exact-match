@@ -1,3 +1,5 @@
+import { lineString, point } from "@turf/helpers";
+import nearestPointOnLine from "@turf/nearest-point-on-line";
 import { z } from "zod";
 import { shortAddress } from "./address";
 import { coordinate } from "./schemas";
@@ -199,8 +201,45 @@ export function routeFromPickup(coordinates: Coordinates[], pickup: Coordinates)
 
 export interface DriverCard {
   firstName: string;
+  /** Registered with an @etu.uae.ac.ma address. */
+  student: boolean;
   rating: number;
   vehicle: string | null;
+}
+
+/** Searching and booking are for ENSA students; other members (external drivers) can publish. */
+export async function isVerifiedStudent(userId: string): Promise<boolean> {
+  const db = await getAdminClient();
+  const { data } = await db.from("profiles").select("verified").eq("id", userId).maybeSingle();
+  return data?.verified === true;
+}
+
+export const STUDENTS_ONLY =
+  "La recherche et la réservation sont réservées aux étudiants de l’ENSA Tanger (adresse @etu.uae.ac.ma). Vous pouvez publier vos trajets en tant que conducteur.";
+
+/** Straight-line distance from the passenger to the closest published path, in metres. */
+function nearestPathMeters(trips: { route: unknown }[], origin: Coordinates): number {
+  let best = Infinity;
+  for (const trip of trips) {
+    try {
+      const line = lineString(legacyRouteCoordinates(trip.route));
+      best = Math.min(
+        best,
+        nearestPointOnLine(line, point(origin), { units: "meters" }).properties.dist,
+      );
+    } catch {
+      /* a malformed stored route is ignored here: the search already skips it */
+    }
+  }
+  return best;
+}
+
+function noMatchHint(trips: { route: unknown }[], origin: Coordinates): string {
+  const count = `${trips.length} trajet${trips.length > 1 ? "s" : ""} vers cette arrivée`;
+  const meters = nearestPathMeters(trips, origin);
+  if (Number.isFinite(meters) && meters > 200)
+    return `${count}, mais votre départ est à environ ${Math.round(meters)} m du chemin le plus proche. Le rendez-vous doit être à 200 m maximum de votre position : choisissez une adresse plus proche de l’itinéraire du conducteur.`;
+  return `${count} passe près de votre départ, mais pas à une heure compatible : le conducteur doit partir assez tôt pour vous déposer avant l’heure d’arrivée choisie, et le départ ne doit pas être déjà passé.`;
 }
 
 /** The one search implementation: used by the search screen and by the assistant. */
@@ -222,6 +261,7 @@ export async function searchRides(
     if (deadline <= Date.now())
       return { ...empty, error: "Choisissez une heure d’arrivée future." };
     const db = await getAdminClient();
+    if (!(await isVerifiedStudent(userId))) return { ...empty, error: STUDENTS_ONLY };
     const { data: trips, error } = await db.from("trips").select("*").eq("active", true).limit(50);
     if (error) throw error;
     const all = trips ?? [];
@@ -258,7 +298,7 @@ export async function searchRides(
         }
         const { data: profile } = await db
           .from("profiles")
-          .select("rating_avg, first_name")
+          .select("rating_avg, first_name, verified")
           .eq("id", trip.driver_id)
           .maybeSingle();
         const { data: car } = trip.vehicle_id
@@ -266,6 +306,7 @@ export async function searchRides(
           : { data: null };
         drivers[trip.id] = {
           firstName: profile?.first_name || "Conducteur",
+          student: profile?.verified ?? false,
           rating: Number(profile?.rating_avg ?? 0),
           vehicle: car ? `${car.brand} ${car.color}` : null,
         };
@@ -313,7 +354,7 @@ export async function searchRides(
       error: null,
       hint:
         matches.length === 0 && unavailableCount === 0
-          ? `${candidates.length} trajet${candidates.length > 1 ? "s" : ""} vers cette arrivée, mais aucun ne passe à 200 m maximum de votre départ à une heure compatible avec votre arrivée.`
+          ? noMatchHint(candidates, data.origin)
           : null,
       unavailableCount,
     };

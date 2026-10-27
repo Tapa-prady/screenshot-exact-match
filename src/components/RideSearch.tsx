@@ -113,7 +113,7 @@ export function RideSearch() {
     try {
       const { data, error: authError } = await supabase.auth.getUser();
       if (authError || !data.user) {
-        setError("Connectez-vous avec votre adresse @etu.uae.ac.ma pour voir les conducteurs.");
+        setError("Connectez-vous pour voir les conducteurs.");
         return;
       }
       const response = await search({
@@ -332,6 +332,13 @@ export function RideSearch() {
                       <span className="flex items-center gap-2">
                         <Car />
                         {results.drivers[match.tripId]?.firstName ?? `Trajet ${index + 1}`}
+                        {results.drivers[match.tripId] ? (
+                          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            {results.drivers[match.tripId]?.student
+                              ? "Étudiant"
+                              : "Conducteur externe"}
+                          </span>
+                        ) : null}
                         {results.drivers[match.tripId]?.rating ? (
                           <span className="text-xs font-normal text-muted-foreground">
                             ★ {results.drivers[match.tripId]?.rating.toFixed(1)}

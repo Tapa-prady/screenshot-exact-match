@@ -8,14 +8,17 @@ import logo from "@/assets/rafiq_logo.png.asset.json";
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string | undefined } => ({
     // Only same-site paths: never follow a link to another website after login.
-    redirect: typeof search["redirect"] === "string" && /^\/(?!\/)/.test(search["redirect"]) ? search["redirect"] : undefined,
+    redirect:
+      typeof search["redirect"] === "string" && /^\/(?!\/)/.test(search["redirect"])
+        ? search["redirect"]
+        : undefined,
   }),
   head: () => ({
     meta: [
       { title: "Connexion — Rafiq" },
       {
         name: "description",
-        content: "Connectez-vous à Rafiq avec votre adresse étudiante @etu.uae.ac.ma.",
+        content: "Connectez-vous à Rafiq : étudiants de l'ENSA Tanger et conducteurs.",
       },
       { property: "og:title", content: "Connexion — Rafiq" },
       {
@@ -49,10 +52,6 @@ function AuthPage() {
     setError("");
     setInfo("");
     const mail = email.trim().toLowerCase();
-    if (!mail.endsWith(DOMAIN)) {
-      setError(`Utilisez votre adresse étudiante ${DOMAIN}.`);
-      return;
-    }
     setBusy(true);
     try {
       if (mode === "forgot") {
@@ -75,9 +74,7 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        setInfo(
-          "Vérifiez votre boîte e-mail étudiante et cliquez sur le lien pour activer votre compte.",
-        );
+        setInfo("Vérifiez votre boîte e-mail et cliquez sur le lien pour activer votre compte.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
         if (error) throw error;
@@ -112,7 +109,9 @@ function AuthPage() {
             ? "Mot de passe oublié"
             : "Connexion"}
       </h1>
-      <p className="mt-1 text-sm text-muted-foreground">Réservé aux étudiants ({DOMAIN}).</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Étudiants ({DOMAIN}) et conducteurs : toute adresse e-mail est acceptée.
+      </p>
       <form onSubmit={submit} className="mt-6 space-y-4">
         {mode === "up" && (
           <div>
@@ -130,13 +129,13 @@ function AuthPage() {
         )}
         <div>
           <label htmlFor="em" className="mb-2 block text-sm font-semibold">
-            E-mail étudiant
+            Adresse e-mail
           </label>
           <input
             id="em"
             type="email"
             required
-            placeholder={`prenom.nom${DOMAIN}`}
+            placeholder="prenom.nom@exemple.com"
             className={field}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
