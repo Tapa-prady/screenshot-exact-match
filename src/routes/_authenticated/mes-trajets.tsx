@@ -1,3 +1,4 @@
+import { useProfile } from "@/hooks/use-profile";
 import { RoleStatus } from "@/components/RoleSwitch";
 import { shortAddress } from "@/lib/address";
 import { useState, type FormEvent } from "react";
@@ -101,6 +102,7 @@ async function loadAll(userId: string) {
 
 function MyTripsPage() {
   const account = useAccount();
+  const mode = useProfile(account.userId).data?.accountType;
   const client = useQueryClient();
   const [error, setError] = useState("");
   const query = useQuery({
@@ -195,6 +197,11 @@ function MyTripsPage() {
       <div className="mx-auto max-w-3xl space-y-10 px-5 py-8">
         <h2 className="font-display text-2xl font-bold">Mes trajets</h2>
         <RoleStatus />
+        {mode === "driver" && (
+          <Button asChild variant="cta" className="w-full sm:w-auto">
+            <Link to="/publier">Publier un trajet</Link>
+          </Button>
+        )}
         {!account.ready && (
           <p className="text-sm text-muted-foreground" role="status">
             Chargement…
@@ -225,71 +232,75 @@ function MyTripsPage() {
         )}
         {data && (
           <>
-            <section aria-labelledby="bookings-title">
-              <h3 id="bookings-title" className="text-lg font-bold">
-                Mes réservations
-              </h3>
-              {data.bookings.length === 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Aucune réservation.{" "}
-                  <Button asChild variant="link" className="px-1">
-                    <Link to="/">Trouver un trajet</Link>
-                  </Button>
-                </p>
-              )}
-              <ul className="mt-3 space-y-3">
-                {data.bookings.map((item) => (
-                  <li key={item.id} className="rounded-2xl border bg-card p-4">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-semibold capitalize">{dayLabel(item.travel_date)}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {STATUS[item.status] ?? item.status}
-                      </span>
-                    </div>
-                    <p className="mt-1 flex items-center gap-2 text-sm">
-                      <Car className="size-4 text-primary" />
-                      {item.trips
-                        ? `${shortLabel(item.trips.origin_label)} → ${shortLabel(item.trips.dest_label)}`
-                        : "Trajet supprimé"}
-                    </p>
-                    <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3.5" />
-                        RDV {clock(item.pickup_eta)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Footprints className="size-3.5" />
-                        {item.walk_meters} m à pied
-                      </span>
-                      <span>{item.price_dh} DH</span>
-                      {item.trips && (
-                        <span>Conducteur : {data.people[item.trips.driver_id] ?? "—"}</span>
-                      )}
-                    </p>
-                    {item.status !== "cancelled" && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button asChild variant="soft" size="sm">
-                          <Link to="/trajet/$bookingId" params={{ bookingId: item.id }}>
-                            {item.status === "completed"
-                              ? "Noter le conducteur"
-                              : "Suivre le trajet"}
-                          </Link>
-                        </Button>
-                        {item.status === "confirmed" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => cancelBooking(item.id)}
-                          >
-                            Annuler
-                          </Button>
-                        )}
+            {!(mode === "driver" && data.bookings.length === 0) && (
+              <section aria-labelledby="bookings-title">
+                <h3 id="bookings-title" className="text-lg font-bold">
+                  Mes réservations
+                </h3>
+                {data.bookings.length === 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Aucune réservation.{" "}
+                    <Button asChild variant="link" className="px-1">
+                      <Link to="/">Trouver un trajet</Link>
+                    </Button>
+                  </p>
+                )}
+                <ul className="mt-3 space-y-3">
+                  {data.bookings.map((item) => (
+                    <li key={item.id} className="rounded-2xl border bg-card p-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="font-semibold capitalize">
+                          {dayLabel(item.travel_date)}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {STATUS[item.status] ?? item.status}
+                        </span>
                       </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
+                      <p className="mt-1 flex items-center gap-2 text-sm">
+                        <Car className="size-4 text-primary" />
+                        {item.trips
+                          ? `${shortLabel(item.trips.origin_label)} → ${shortLabel(item.trips.dest_label)}`
+                          : "Trajet supprimé"}
+                      </p>
+                      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="size-3.5" />
+                          RDV {clock(item.pickup_eta)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Footprints className="size-3.5" />
+                          {item.walk_meters} m à pied
+                        </span>
+                        <span>{item.price_dh} DH</span>
+                        {item.trips && (
+                          <span>Conducteur : {data.people[item.trips.driver_id] ?? "—"}</span>
+                        )}
+                      </p>
+                      {item.status !== "cancelled" && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button asChild variant="soft" size="sm">
+                            <Link to="/trajet/$bookingId" params={{ bookingId: item.id }}>
+                              {item.status === "completed"
+                                ? "Noter le conducteur"
+                                : "Suivre le trajet"}
+                            </Link>
+                          </Button>
+                          {item.status === "confirmed" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => cancelBooking(item.id)}
+                            >
+                              Annuler
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             <section aria-labelledby="trips-title">
               <h3 id="trips-title" className="text-lg font-bold">

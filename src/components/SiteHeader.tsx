@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAccount } from "@/hooks/use-account";
+import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
@@ -9,6 +10,7 @@ import logo from "@/assets/rafiq_logo.png.asset.json";
 
 export function SiteHeader({ onSignOut }: { onSignOut?: () => void }) {
   const account = useAccount();
+  const mode = useProfile(account.userId).data?.accountType ?? null;
   async function signOut() {
     await supabase.auth.signOut();
     onSignOut?.();
@@ -29,12 +31,16 @@ export function SiteHeader({ onSignOut }: { onSignOut?: () => void }) {
             aria-label="Navigation principale"
             className="order-3 flex w-full items-center gap-1 sm:order-none sm:w-auto"
           >
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/assistant">Rafiq IA</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/publier">Publier un trajet</Link>
-            </Button>
+            {mode !== "driver" && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/assistant">Rafiq IA</Link>
+              </Button>
+            )}
+            {mode !== "student" && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/publier">Publier un trajet</Link>
+              </Button>
+            )}
             <Button asChild variant="ghost" size="sm">
               <Link to="/mes-trajets">Mes trajets</Link>
             </Button>

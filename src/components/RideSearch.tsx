@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
 import { ClientOnly } from "@/components/ClientOnly";
@@ -15,6 +15,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAccount } from "@/hooks/use-account";
+import { useProfile } from "@/hooks/use-profile";
 import { RoleChooser } from "@/components/RoleChooser";
 import { RoleSwitch } from "@/components/RoleSwitch";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -30,6 +32,14 @@ const fieldClass =
   "h-12 w-full rounded-xl border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function RideSearch() {
+  const router = useRouter();
+  const account = useAccount();
+  const mode = useProfile(account.userId);
+  // A driver-mode account has no passenger search: it lands on its own space.
+  const isDriver = mode.data?.accountType === "driver";
+  useEffect(() => {
+    if (isDriver) void router.navigate({ to: "/mes-trajets", replace: true });
+  }, [isDriver, router]);
   const [origin, setOrigin] = useState<Place | null>(null);
   const [destination, setDestination] = useState<Place | null>(null);
   const [originText, setOriginText] = useState("");
@@ -147,6 +157,15 @@ export function RideSearch() {
     }
   }
   const driving = results?.routes.find((route) => route.id === selected)?.coordinates;
+  if (account.userId && (mode.isLoading || isDriver))
+    return (
+      <main className="min-h-screen">
+        <SiteHeader />
+        <p className="px-5 py-8 text-sm text-muted-foreground" role="status">
+          Chargement de votre espace…
+        </p>
+      </main>
+    );
   return (
     <main className="min-h-screen">
       <SiteHeader

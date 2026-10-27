@@ -6,6 +6,8 @@ import { useAccount } from "@/hooks/use-account";
 /** Home entry points: one account, two roles. Nobody has to guess where drivers go. */
 export function RoleChooser() {
   const account = useAccount();
+  // Only for visitors: once signed in, the account's mode decides where you land.
+  if (!account.ready || account.email) return null;
   return (
     <section aria-label="Choisir un rôle" className="border-b bg-card/60 px-5 py-4">
       <div className="mx-auto grid max-w-6xl gap-3 sm:grid-cols-2">
