@@ -18,3 +18,8 @@
 - [x] Générer un APK depuis l’adresse publiée (PWABuilder ou Bubblewrap avec `twa-manifest.json`, `assetlinks.json` et bouton d’installation dans l’interface).
 - [x] Assistant complet Google AI Studio : activation via secret serveur `GEMINI_API_KEY` avec protection contre le dépassement de quota gratuit (fallback local automatique).
 - [ ] Prix et point de rendez-vous : aujourd’hui calculés par le serveur mais enregistrés avec les droits de la personne connectée ; à verrouiller avant tout paiement réel.
+
+- [x] Réunion des versions : Lovable (connexion, garde des pages) + AI Studio (notifications, installation, météo, assistant) + écrans Rafiq sur un seul dépôt.
+- [x] Entrée conducteur visible sur l’accueil, véhicule demandé à la publication, conducteur (prénom, note, voiture) affiché dans les résultats, plaque montrée après réservation.
+- [x] Conducteur : « Démarrer » puis « Terminer » le trajet depuis l’écran du trajet ; avis (1 à 5 étoiles) des deux côtés une fois terminé.
+- [ ] Vérifier dans Supabase que la confirmation par e-mail est activée à l’inscription.

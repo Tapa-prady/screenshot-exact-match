@@ -263,16 +263,18 @@ function MyTripsPage() {
                         <span>Conducteur : {data.people[item.trips.driver_id] ?? "—"}</span>
                       )}
                     </p>
-                    {item.status === "confirmed" && (
+                    {item.status !== "cancelled" && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button asChild variant="soft" size="sm">
                           <Link to="/trajet/$bookingId" params={{ bookingId: item.id }}>
-                            Suivre le trajet
+                            {item.status === "completed" ? "Noter le conducteur" : "Suivre le trajet"}
                           </Link>
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => cancelBooking(item.id)}>
-                          Annuler
-                        </Button>
+                        {item.status === "confirmed" && (
+                          <Button variant="outline" size="sm" onClick={() => cancelBooking(item.id)}>
+                            Annuler
+                          </Button>
+                        )}
                       </div>
                     )}
                   </li>
@@ -315,12 +317,12 @@ function MyTripsPage() {
                       {riders.length > 0 && (
                         <ul
                           className="mt-3 space-y-1 border-t pt-3 text-sm"
-                          aria-label="Passagères à venir"
+                          aria-label="Passagers à venir"
                         >
                           {riders.map((rider) => (
                             <li key={rider.id}>
                               <span className="capitalize">{dayLabel(rider.travel_date)}</span> ·{" "}
-                              {data.people[rider.passenger_id] ?? "Passagère"} · RDV{" "}
+                              {data.people[rider.passenger_id] ?? "Passager"} · RDV{" "}
                               {clock(rider.pickup_eta)} ({rider.walk_meters} m) ·{" "}
                               <Link
                                 className="text-primary underline"

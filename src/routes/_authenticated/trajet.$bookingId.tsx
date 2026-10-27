@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CircleCheck, LoaderCircle, MapPin, MessageCircle, Phone, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RideProgress } from "@/components/RideProgress";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAccount } from "@/hooks/use-account";
 import { supabase } from "@/integrations/supabase/client";
@@ -256,6 +257,8 @@ function TripLivePage() {
                 <p className="mt-2 text-destructive">Cette réservation n’est plus active.</p>
               )}
             </section>
+
+            {userId && <RideProgress bookingId={bookingId} userId={userId} status={data.status} />}
 
             <ClientOnly fallback={<div className="h-[320px] bg-muted md:h-[420px]" />}>
               <Suspense fallback={<div className="h-[320px] bg-muted md:h-[420px]" />}>

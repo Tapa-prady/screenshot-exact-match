@@ -218,3 +218,49 @@ export const bookRide = createServerFn({ method: "POST" })
       return fail("La réservation n’a pas abouti. Réessayez dans un instant.");
     }
   });
+
+/**
+ * Who is on the other side of a booking. Members cannot read each other's profile or vehicle
+ * directly, so the server checks the caller is a party of this booking and returns only what
+ * the trip screen needs (the plate is shown to the passenger, once the seat is booked).
+ */
+export const bookingParty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ bookingId: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    try {
+      // Read with the caller's own rights: a stranger gets no row.
+      const { data: booking } = await context.supabase
+        .from("bookings")
+        .select("passenger_id, trips(driver_id, vehicle_id)")
+        .eq("id", data.bookingId)
+        .maybeSingle();
+      if (!booking?.trips) return null;
+      const iAmDriver = booking.trips.driver_id === context.userId;
+      const otherId = iAmDriver ? booking.passenger_id : booking.trips.driver_id;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("first_name, rating_avg")
+        .eq("id", otherId)
+        .maybeSingle();
+      const { data: car } =
+        !iAmDriver && booking.trips.vehicle_id
+          ? await supabaseAdmin
+              .from("vehicles")
+              .select("brand, color, plate")
+              .eq("id", booking.trips.vehicle_id)
+              .maybeSingle()
+          : { data: null };
+      return {
+        role: iAmDriver ? ("driver" as const) : ("passenger" as const),
+        otherId,
+        firstName: profile?.first_name || (iAmDriver ? "Passager" : "Conducteur"),
+        rating: Number(profile?.rating_avg ?? 0),
+        vehicle: car ? { brand: car.brand, color: car.color, plate: car.plate } : null,
+      };
+    } catch (error) {
+      console.error("bookingParty failed", error);
+      return null;
+    }
+  });
