@@ -100,3 +100,37 @@ export const searchRealRides = createServerFn({ method: "POST" })
       return { ...empty, error: "Les trajets ne sont pas accessibles pour le moment. Réessayez plus tard." };
     }
   });
+const place = z.object({ label: z.string().trim().min(1).max(300), coordinates: coordinate });
+export const publishTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    origin: place, destination: place,
+    departureTime: z.string().regex(/^\d{2}:\d{2}$/),
+    oneOffDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    weekdays: z.array(z.number().int().min(1).max(7)).max(7),
+    seats: z.number().int().min(1).max(6),
+    vehicle: z.object({ brand: z.string().trim().min(1).max(60), color: z.string().trim().min(1).max(30), plate: z.string().trim().min(2).max(20) }),
+  }))
+  .handler(async ({ data, context }) => {
+    if (!data.oneOffDate && data.weekdays.length === 0) return { error: "Choisissez une date ou au moins un jour de la semaine." };
+    let route;
+    try { ({ route } = await routeRequest("car", data.origin.coordinates, data.destination.coordinates)); }
+    catch { return { error: "L’itinéraire n’a pas pu être calculé. Réessayez dans un instant." }; }
+    const { data: existing } = await context.supabase.from("vehicles").select("id").eq("owner_id", context.userId).eq("plate", data.vehicle.plate).maybeSingle();
+    let vehicleId = existing?.id;
+    if (!vehicleId) {
+      const { data: created, error } = await context.supabase.from("vehicles").insert({ owner_id: context.userId, ...data.vehicle, seats: data.seats }).select("id").single();
+      if (error) return { error: "Le véhicule n’a pas pu être enregistré." };
+      vehicleId = created.id;
+    }
+    const { error } = await context.supabase.from("trips").insert({
+      driver_id: context.userId, vehicle_id: vehicleId,
+      origin_label: data.origin.label, origin_lng: data.origin.coordinates[0], origin_lat: data.origin.coordinates[1],
+      dest_label: data.destination.label, dest_lng: data.destination.coordinates[0], dest_lat: data.destination.coordinates[1],
+      departure_time: data.departureTime, one_off_date: data.oneOffDate, weekdays: data.oneOffDate ? [] : data.weekdays, seats: data.seats,
+      route: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      route_km: Math.round(route.distance / 100) / 10, route_minutes: Math.round(route.duration / 60),
+    });
+    if (error) return { error: "Le trajet n’a pas pu être publié." };
+    return { error: null, km: Math.round(route.distance / 100) / 10, minutes: Math.round(route.duration / 60) };
+  });
