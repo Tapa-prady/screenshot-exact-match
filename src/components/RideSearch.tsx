@@ -33,7 +33,7 @@ export function RideSearch() {
   useEffect(() => {
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     setDate(formatInTimeZone(tomorrow, "Africa/Casablanca", "yyyy-MM-dd"));
-    const show = (email?: string | null) => setAccount(email ? email.split("@")[0] : null);
+    const show = (email?: string | null) => setAccount(email ? (email.split("@")[0] ?? null) : null);
     supabase.auth.getSession().then(({ data }) => show(data.session?.user.email));
     const { data } = supabase.auth.onAuthStateChange((_e, session) => show(session?.user.email));
     return () => data.subscription.unsubscribe();
