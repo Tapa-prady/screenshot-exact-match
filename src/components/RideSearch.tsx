@@ -4,30 +4,27 @@ import { useServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
 import { Car, Clock, Footprints, GraduationCap, LocateFixed, MapPin, Search, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { searchAddress, searchRealRides } from "@/lib/routing.functions";
+import { searchRealRides } from "@/lib/routing.functions";
+import { AddressInput, ENSA_TANGER, type Place } from "./AddressInput";
 import { supabase } from "@/integrations/supabase/client";
 import type { Coordinates } from "@/lib/ride-matching";
 import logo from "@/assets/rafiq_logo.png.asset.json";
 
 const RideMap = lazy(() => import("./RideMap"));
-type Place = { label: string; coordinates: Coordinates };
 type Results = Awaited<ReturnType<typeof searchRealRides>>;
 const fieldClass = "h-12 w-full rounded-xl border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function RideSearch() {
   const [origin, setOrigin] = useState<Place | null>(null);
-  const [destination, setDestination] = useState<Place | null>(null);
+  const [destination, setDestination] = useState<Place | null>(ENSA_TANGER);
   const [originText, setOriginText] = useState("");
-  const [destinationText, setDestinationText] = useState("ENSA Tanger");
+  const [destinationText, setDestinationText] = useState(ENSA_TANGER.label);
   const [date, setDate] = useState("");
   const [arrival, setArrival] = useState("08:30");
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [target, setTarget] = useState<"origin" | "destination">("origin");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [selected, setSelected] = useState("");
-  const geocode = useServerFn(searchAddress);
   const search = useServerFn(searchRealRides);
   const [account, setAccount] = useState<string | null>(null);
   useEffect(() => {
@@ -48,21 +45,9 @@ export function RideSearch() {
       setOrigin(place); setOriginText(place.label); setBusy(null);
     }, () => { setError("Position introuvable. Autorisez la localisation ou saisissez votre adresse."); setBusy(null); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   }
-  async function lookup(which: "origin" | "destination") {
-    const query = which === "origin" ? originText : destinationText;
-    if (query.trim().length < 3) { setError("Saisissez au moins trois caractères."); return; }
-    setError(""); setBusy(which); setTarget(which); setPlaces([]); setResults(null);
-    try {
-      const response = await geocode({ data: { query } });
-      setPlaces(response.places);
-      if (response.error) setError(response.error);
-      else if (!response.places.length) setError("Aucune adresse trouvée. Précisez la rue ou le lieu.");
-    } catch { setError("La recherche d’adresse est indisponible."); }
-    finally { setBusy(null); }
-  }
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(""); setResults(null);
-    if (!origin || !destination) { setError("Choisissez votre départ et confirmez l’adresse d’arrivée."); return; }
+    if (!origin || !destination) { setError("Choisissez votre départ dans les suggestions."); return; }
     setBusy("rides");
     try {
       const { data, error: authError } = await supabase.auth.getUser();
@@ -91,14 +76,13 @@ export function RideSearch() {
           <form onSubmit={submit} className="mt-6 space-y-5">
             <div>
               <label htmlFor="departure" className="mb-2 flex items-center gap-2 text-sm font-semibold"><MapPin className="size-4 text-primary" />Départ</label>
-              <div className="flex gap-2"><input id="departure" value={originText} placeholder="Votre adresse" className={fieldClass} onChange={event => { setOriginText(event.target.value); setOrigin(null); setResults(null); }} /><Button variant="soft" size="icon" type="button" title="Rechercher le départ" aria-label="Rechercher le départ" disabled={busy !== null} onClick={() => lookup("origin")}><Search /></Button></div>
+              <AddressInput id="departure" value={originText} place={origin} placeholder="Tapez votre quartier, ex. Mesnana" onText={text => { setOriginText(text); setOrigin(null); setResults(null); }} onPick={place => { setOrigin(place); setOriginText(place.label); setResults(null); }} />
               <Button variant="ghost" type="button" className="mt-1 w-full justify-start px-0 text-primary" disabled={busy !== null} onClick={locate}>{busy === "gps" ? <LoaderCircle className="animate-spin" /> : <LocateFixed />}Ma position actuelle</Button>
             </div>
             <div>
               <label htmlFor="destination" className="mb-2 flex items-center gap-2 text-sm font-semibold"><GraduationCap className="size-4 text-primary" />Arrivée</label>
-              <div className="flex gap-2"><input id="destination" value={destinationText} className={fieldClass} onChange={event => { setDestinationText(event.target.value); setDestination(null); setResults(null); }} /><Button variant="soft" size="icon" type="button" title="Rechercher l’arrivée" aria-label="Rechercher l’arrivée" disabled={busy !== null} onClick={() => lookup("destination")}><Search /></Button></div>
+              <AddressInput id="destination" value={destinationText} place={destination} onText={text => { setDestinationText(text); setDestination(null); setResults(null); }} onPick={place => { setDestination(place); setDestinationText(place.label); setResults(null); }} />
             </div>
-            {places.length > 0 && <ul className="divide-y border-y" aria-label="Adresses trouvées">{places.map(place => <li key={place.label}><Button type="button" variant="ghost" className="h-auto min-h-12 w-full justify-start whitespace-normal rounded-none px-2 py-3 text-start text-sm" onClick={() => { if (target === "origin") { setOrigin(place); setOriginText(place.label); } else { setDestination(place); setDestinationText(place.label); } setPlaces([]); }}>{place.label}</Button></li>)}</ul>}
             <div className="grid grid-cols-2 gap-3">
               <div><label htmlFor="travel-date" className="mb-2 block text-sm font-semibold">Date</label><input id="travel-date" type="date" required className={fieldClass} value={date} onChange={event => { setDate(event.target.value); setResults(null); }} /></div>
               <div><label htmlFor="arrival-time" className="mb-2 block text-sm font-semibold">Arriver avant</label><input id="arrival-time" type="time" required className={fieldClass} value={arrival} onChange={event => { setArrival(event.target.value); setResults(null); }} /></div>
