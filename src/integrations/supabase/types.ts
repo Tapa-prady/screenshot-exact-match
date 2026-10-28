@@ -137,6 +137,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: string
           avatar_url: string | null
           created_at: string
           first_name: string
@@ -148,6 +149,7 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          account_type?: string
           avatar_url?: string | null
           created_at?: string
           first_name?: string
@@ -159,6 +161,7 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          account_type?: string
           avatar_url?: string | null
           created_at?: string
           first_name?: string
@@ -428,6 +431,10 @@ export type Database = {
     }
     Functions: {
       compute_price: { Args: { km: number }; Returns: number }
+      has_account_type: {
+        Args: { _type: string; _user: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
