@@ -48,8 +48,10 @@ export function AddressField({
   }
 
   async function lookup(query: string, pickFirst = false) {
-    if (query.trim().length < 3) {
-      setError("Saisissez au moins trois caractères.");
+    seq.current++;
+    clearTimeout(timer.current);
+    if (query.trim().length < 2) {
+      setError("Saisissez au moins deux caractères.");
       return;
     }
     setError("");
@@ -75,6 +77,27 @@ export function AddressField({
     } finally {
       setBusy(null);
     }
+  }
+
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const seq = useRef(0);
+  function suggest(value: string) {
+    clearTimeout(timer.current);
+    const mine = ++seq.current;
+    if (value.trim().length < 2) {
+      setPlaces([]);
+      return;
+    }
+    timer.current = setTimeout(async () => {
+      try {
+        const raw = await geocode({ data: { query: value } });
+        if (mine !== seq.current) return;
+        setPlaces(raw.places.map((p) => ({ ...p, label: shortAddress(p.label) })));
+        setError("");
+      } catch {
+        /* the magnifier still works */
+      }
+    }, 450);
   }
 
   function locate() {
@@ -122,6 +145,7 @@ export function AddressField({
           onChange={(event) => {
             setText(event.target.value);
             if (picked) choose(null);
+            suggest(event.target.value);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -174,6 +198,7 @@ export function AddressField({
                 variant="ghost"
                 className="h-auto min-h-12 w-full justify-start whitespace-normal rounded-none px-2 py-3 text-start text-sm"
                 onClick={() => {
+                  seq.current++;
                   setText(place.label);
                   choose(place);
                   setPlaces([]);

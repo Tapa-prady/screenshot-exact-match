@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { formatInTimeZone } from "date-fns-tz";
@@ -15,6 +15,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { shortAddress } from "@/lib/address";
 import { useAccount } from "@/hooks/use-account";
 import { useProfile } from "@/hooks/use-profile";
 import { RoleChooser } from "@/components/RoleChooser";
@@ -88,10 +89,33 @@ export function RideSearch() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   }
+  const suggestTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const suggestSeq = useRef(0);
+  function suggest(which: "origin" | "destination", text: string) {
+    clearTimeout(suggestTimer.current);
+    const seq = ++suggestSeq.current;
+    if (text.trim().length < 2) {
+      setPlaces([]);
+      return;
+    }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const response = await geocode({ data: { query: text } });
+        if (seq !== suggestSeq.current) return;
+        setTarget(which);
+        setPlaces(response.places.map((p) => ({ ...p, label: shortAddress(p.label) })));
+        setError("");
+      } catch {
+        /* silent: the magnifier still works */
+      }
+    }, 450);
+  }
   async function lookup(which: "origin" | "destination") {
+    suggestSeq.current++;
+    clearTimeout(suggestTimer.current);
     const query = which === "origin" ? originText : destinationText;
-    if (query.trim().length < 3) {
-      setError("Saisissez au moins trois caractères.");
+    if (query.trim().length < 2) {
+      setError("Saisissez au moins deux caractères.");
       return;
     }
     setError("");
@@ -200,6 +224,7 @@ export function RideSearch() {
                     setOriginText(event.target.value);
                     setOrigin(null);
                     setResults(null);
+                    suggest("origin", event.target.value);
                   }}
                 />
                 <Button
@@ -242,6 +267,7 @@ export function RideSearch() {
                     setDestinationText(event.target.value);
                     setDestination(null);
                     setResults(null);
+                    suggest("destination", event.target.value);
                   }}
                 />
                 <Button
@@ -266,6 +292,7 @@ export function RideSearch() {
                       variant="ghost"
                       className="h-auto min-h-12 w-full justify-start whitespace-normal rounded-none px-2 py-3 text-start text-sm"
                       onClick={() => {
+                        suggestSeq.current++;
                         if (target === "origin") {
                           setOrigin(place);
                           setOriginText(place.label);
@@ -345,61 +372,69 @@ export function RideSearch() {
               )}
               <div className="mt-3 space-y-3">
                 {results.matches.map((match, index) => (
-                  <Button
-                    key={match.tripId}
-                    variant="outline"
-                    className={`h-auto w-full flex-col items-start gap-3 whitespace-normal p-4 ${selected === match.tripId ? "border-primary bg-accent" : ""}`}
-                    onClick={() => setSelected(match.tripId)}
-                  >
-                    <span className="flex w-full justify-between">
-                      <span className="flex items-center gap-2">
-                        <Car />
-                        {results.drivers[match.tripId]?.firstName ?? `Trajet ${index + 1}`}
-                        {results.drivers[match.tripId] ? (
-                          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-primary">
-                            {results.drivers[match.tripId]?.student
-                              ? "Étudiant"
-                              : "Conducteur externe"}
-                          </span>
-                        ) : null}
-                        {results.drivers[match.tripId]?.rating ? (
-                          <span className="text-xs font-normal text-muted-foreground">
-                            ★ {results.drivers[match.tripId]?.rating.toFixed(1)}
-                          </span>
-                        ) : null}
+                  <div key={match.tripId} className="space-y-2">
+                    <Button
+                      variant="outline"
+                      className={`h-auto w-full flex-col items-start gap-3 whitespace-normal p-4 ${selected === match.tripId ? "border-primary bg-accent" : ""}`}
+                      aria-pressed={selected === match.tripId}
+                      onClick={() => setSelected(match.tripId)}
+                    >
+                      <span className="flex w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <Car />
+                          {results.drivers[match.tripId]?.firstName ?? `Trajet ${index + 1}`}
+                          {results.drivers[match.tripId] ? (
+                            <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              {results.drivers[match.tripId]?.student
+                                ? "Étudiant"
+                                : "Conducteur externe"}
+                            </span>
+                          ) : null}
+                          {results.drivers[match.tripId]?.rating ? (
+                            <span className="text-xs font-normal text-muted-foreground">
+                              ★ {results.drivers[match.tripId]?.rating.toFixed(1)}
+                            </span>
+                          ) : null}
+                        </span>
+                        <b>{match.priceDh} DH</b>
                       </span>
-                      <b>{match.priceDh} DH</b>
-                    </span>
-                    <span className="flex flex-wrap gap-3 text-xs">
-                      <span className="flex items-center gap-1">
-                        <Footprints />
-                        {Math.ceil(match.walkingRoute.distanceMeters)} m
+                      <span className="flex flex-wrap gap-3 text-xs">
+                        <span className="flex items-center gap-1">
+                          <Footprints />
+                          {Math.ceil(match.walkingRoute.distanceMeters)} m
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock />
+                          RDV {formatInTimeZone(match.pickupTime, "Africa/Casablanca", "HH:mm")}
+                        </span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock />
-                        RDV {formatInTimeZone(match.pickupTime, "Africa/Casablanca", "HH:mm")}
+                      <span className="text-xs">
+                        Arrivée {formatInTimeZone(match.arrivalTime, "Africa/Casablanca", "HH:mm")}
+                        {results.drivers[match.tripId]?.vehicle
+                          ? ` · ${results.drivers[match.tripId]?.vehicle}`
+                          : ""}
                       </span>
-                    </span>
-                    <span className="text-xs">
-                      Arrivée {formatInTimeZone(match.arrivalTime, "Africa/Casablanca", "HH:mm")}
-                      {results.drivers[match.tripId]?.vehicle
-                        ? ` · ${results.drivers[match.tripId]?.vehicle}`
-                        : ""}
-                    </span>
-                  </Button>
+                    </Button>
+                    {selected === match.tripId && !booked && (
+                      <Button
+                        variant="cta"
+                        className="w-full"
+                        disabled={busy !== null}
+                        onClick={reserve}
+                      >
+                        {busy === "book" ? (
+                          <LoaderCircle className="animate-spin" />
+                        ) : (
+                          <CircleCheck />
+                        )}
+                        {busy === "book"
+                          ? "Réservation…"
+                          : `Cliquer pour réserver ma place · ${match.priceDh} DH`}
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
-              {active && !booked && (
-                <Button
-                  variant="cta"
-                  className="mt-4 w-full"
-                  disabled={busy !== null}
-                  onClick={reserve}
-                >
-                  {busy === "book" ? <LoaderCircle className="animate-spin" /> : <CircleCheck />}
-                  {busy === "book" ? "Réservation…" : `Réserver ma place · ${active.priceDh} DH`}
-                </Button>
-              )}
               {booked && (
                 <div
                   role="status"

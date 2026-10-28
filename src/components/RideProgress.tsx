@@ -62,14 +62,12 @@ export function RideProgress({
     if (!other || stars < 1) return;
     setBusy(true);
     setError("");
-    const { error: failure } = await supabase
-      .from("reviews")
-      .insert({
-        booking_id: bookingId,
-        author_id: userId,
-        target_id: other.otherId,
-        rating: stars,
-      });
+    const { error: failure } = await supabase.from("reviews").insert({
+      booking_id: bookingId,
+      author_id: userId,
+      target_id: other.otherId,
+      rating: stars,
+    });
     setBusy(false);
     if (failure) setError("Votre avis n’a pas pu être enregistré.");
     else await client.invalidateQueries({ queryKey: ["review", bookingId, userId] });

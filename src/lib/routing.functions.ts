@@ -6,15 +6,17 @@ import { clockTime, coordinate, isoDate } from "./schemas";
 import { headers, pause, searchRides } from "./routing.server";
 
 export const searchAddress = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ query: z.string().trim().min(3).max(180) }))
+  .inputValidator(z.object({ query: z.string().trim().min(2).max(180) }))
   .handler(async ({ data }) => {
     try {
       await pause();
       const params = new URLSearchParams({
         q: `${data.query}, Tanger, Maroc`,
         format: "jsonv2",
-        limit: "4",
+        limit: "8",
         countrycodes: "ma",
+        viewbox: "-6.05,35.88,-5.65,35.65",
+        bounded: "1",
       });
       const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
         headers,
@@ -25,10 +27,13 @@ export const searchAddress = createServerFn({ method: "POST" })
         .array(z.object({ display_name: z.string(), lat: z.string(), lon: z.string() }))
         .parse(await response.json());
       return {
-        places: places.map((place) => ({
-          label: shortAddress(place.display_name),
-          coordinates: coordinate.parse([Number(place.lon), Number(place.lat)]),
-        })),
+        places: places
+          .map((place) => ({
+            label: shortAddress(place.display_name),
+            coordinates: coordinate.parse([Number(place.lon), Number(place.lat)]),
+          }))
+          .filter((place, index, all) => all.findIndex((p) => p.label === place.label) === index)
+          .slice(0, 5),
         error: null,
       };
     } catch {
