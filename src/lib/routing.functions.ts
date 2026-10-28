@@ -9,6 +9,52 @@ export const searchAddress = createServerFn({ method: "POST" })
   .inputValidator(z.object({ query: z.string().trim().min(2).max(180) }))
   .handler(async ({ data }) => {
     try {
+      // Photon supports prefix (type-ahead) search, so "mes" already proposes "Mesnana…".
+      const typed = data.query.trim().toLowerCase();
+      try {
+        const photon = new URLSearchParams({
+          q: data.query,
+          limit: "10",
+          lat: "35.76",
+          lon: "-5.83",
+          bbox: "-6.05,35.6,-5.6,35.85",
+        });
+        const response = await fetch(`https://photon.komoot.io/api/?${photon}`, {
+          headers,
+          signal: AbortSignal.timeout(6000),
+        });
+        if (response.ok) {
+          const parsed = z
+            .object({
+              features: z.array(
+                z.object({
+                  geometry: z.object({ coordinates: coordinate }),
+                  properties: z.record(z.string(), z.unknown()),
+                }),
+              ),
+            })
+            .parse(await response.json());
+          const seen = new Set<string>();
+          const found = parsed.features.flatMap((feature) => {
+            const p = feature.properties as Record<string, string | undefined>;
+            const name = p["name"] ?? p["street"];
+            if (!name) return [];
+            const area = [p["locality"], p["district"], p["street"]].find(
+              (value) => value && value !== name,
+            );
+            const label = shortAddress(area ? `${name}, ${area}` : name);
+            if (seen.has(label)) return [];
+            seen.add(label);
+            return [{ label, coordinates: feature.geometry.coordinates }];
+          });
+          const starts = found.filter((place) => place.label.toLowerCase().startsWith(typed));
+          const rest = found.filter((place) => !place.label.toLowerCase().startsWith(typed));
+          const places = [...starts, ...rest].slice(0, 6);
+          if (places.length) return { places, error: null };
+        }
+      } catch {
+        /* fall back to Nominatim below */
+      }
       await pause();
       const params = new URLSearchParams({
         q: `${data.query}, Tanger, Maroc`,
