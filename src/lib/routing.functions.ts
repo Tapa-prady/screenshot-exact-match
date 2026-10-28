@@ -48,7 +48,7 @@ export const searchAddress = createServerFn({ method: "POST" })
         if (seen.has(label)) return [];
         seen.add(label);
         return [{ label, coordinates: feature.geometry.coordinates }];
-      }).slice(0, 6);
+      }).filter(place => place.label.toLowerCase().startsWith(data.query.trim().toLowerCase())).slice(0, 6);
       return { places, error: null };
     } catch {
       return { places: [], error: "La recherche d’adresse est indisponible. Vous pouvez utiliser votre position GPS." };
