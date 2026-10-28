@@ -1,317 +1,118 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Car, CircleCheck, GraduationCap, LoaderCircle, MapPin } from "lucide-react";
+import { ArrowLeft, Car, LoaderCircle, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AddressField, type Place } from "@/components/AddressField";
-import { RoleSwitch } from "@/components/RoleSwitch";
-import { SiteHeader } from "@/components/SiteHeader";
-import { useAccount } from "@/hooks/use-account";
+import { publishTrip } from "@/lib/routing.functions";
+import { AddressInput, ENSA_TANGER, type Place } from "@/components/AddressInput";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateRidePrice } from "@/lib/ride-pricing";
-import { publishTrip } from "@/lib/trips.functions";
+import type { Coordinates } from "@/lib/ride-matching";
 
 export const Route = createFileRoute("/_authenticated/publier")({
-  head: () => ({
-    meta: [
-      { title: "Publier un trajet — Rafiq" },
-      {
-        name: "description",
-        content:
-          "Proposez vos places libres aux étudiants de l'ENSA Tanger et partagez vos frais d'essence.",
-      },
-      { property: "og:title", content: "Publier un trajet — Rafiq" },
-      {
-        property: "og:description",
-        content: "Proposez un trajet récurrent en moins de 30 secondes.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Publier un trajet — Rafiq" },
+    { name: "description", content: "Proposez votre trajet vers l’ENSA Tanger aux étudiants sur votre itinéraire." },
+    { property: "og:title", content: "Publier un trajet — Rafiq" },
+    { property: "og:description", content: "Conducteurs : partagez vos places vers l’ENSA Tanger." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: PublishPage,
 });
 
-const DAYS = [
-  ["Lun", 1],
-  ["Mar", 2],
-  ["Mer", 3],
-  ["Jeu", 4],
-  ["Ven", 5],
-  ["Sam", 6],
-  ["Dim", 7],
-] as const;
-const fieldClass =
-  "h-12 w-full rounded-xl border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+type Trip = { id: string; origin_label: string; dest_label: string; departure_time: string; one_off_date: string | null; weekdays: number[]; seats: number; route_km: number; active: boolean };
+const field = "h-12 w-full rounded-xl border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 function PublishPage() {
-  const account = useAccount();
   const publish = useServerFn(publishTrip);
   const [origin, setOrigin] = useState<Place | null>(null);
-  const [destination, setDestination] = useState<Place | null>(null);
-  const [time, setTime] = useState("07:30");
-  const [once, setOnce] = useState(false);
+  const [destination, setDestination] = useState<Place | null>(ENSA_TANGER);
+  const [originText, setOriginText] = useState("");
+  const [destText, setDestText] = useState(ENSA_TANGER.label);
+  const [recurring, setRecurring] = useState(true);
+  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [date, setDate] = useState("");
-  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [time, setTime] = useState("07:45");
   const [seats, setSeats] = useState(3);
   const [vehicle, setVehicle] = useState({ brand: "", color: "", plate: "" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState<{ routeKm: number; routeMinutes: number } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [trips, setTrips] = useState<Trip[]>([]);
 
-  // Reuse the driver's last car so a recurring driver only types it once.
-  useEffect(() => {
-    if (!account.userId) return;
-    void supabase
-      .from("vehicles")
-      .select("brand, color, plate")
-      .eq("owner_id", account.userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setVehicle((current) => (current.plate ? current : data));
-      });
-  }, [account.userId]);
-
-  function toggleDay(day: number) {
-    setDays((current) =>
-      current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort(),
-    );
+  async function loadTrips() {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    const { data } = await supabase.from("trips").select("id,origin_label,dest_label,departure_time,one_off_date,weekdays,seats,route_km,active").eq("driver_id", u.user.id).order("created_at", { ascending: false });
+    setTrips(data ?? []);
   }
+  useEffect(() => { loadTrips(); }, []);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setError("");
-    if (!origin || !destination) {
-      setError("Confirmez votre adresse de départ et d’arrivée avec la loupe.");
-      return;
-    }
-    if (once && !date) {
-      setError("Choisissez la date du trajet.");
-      return;
-    }
-    if (!once && days.length === 0) {
-      setError("Choisissez au moins un jour.");
-      return;
-    }
-    setBusy(true);
+  function locate() {
+    if (!navigator.geolocation) { setMessage("Localisation indisponible."); return; }
+    setBusy("gps");
+    navigator.geolocation.getCurrentPosition(p => { const pl = { label: "Ma position actuelle", coordinates: [p.coords.longitude, p.coords.latitude] as Coordinates }; setOrigin(pl); setOriginText(pl.label); setBusy(null); },
+      () => { setMessage("Position introuvable."); setBusy(null); }, { enableHighAccuracy: true, timeout: 15000 });
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setMessage("");
+    if (!origin || !destination) { setMessage("Choisissez le départ dans les suggestions."); return; }
+    setBusy("pub");
     try {
-      const result = await publish({
-        data: {
-          origin,
-          destination,
-          departureTime: time,
-          weekdays: once ? [] : days,
-          oneOffDate: once ? date : null,
-          seats,
-          vehicle,
-        },
-      });
-      if (result.ok) setDone({ routeKm: result.routeKm, routeMinutes: result.routeMinutes });
-      else setError(result.error);
-    } catch {
-      setError("La publication n’a pas abouti. Réessayez dans un instant.");
-    } finally {
-      setBusy(false);
-    }
+      const r = await publish({ data: { origin, destination, departureTime: time, oneOffDate: recurring ? null : date, weekdays, seats, vehicle } });
+      if (r.error) setMessage(r.error);
+      else { setMessage(`Trajet publié : ${r.km} km, ${r.minutes} min. Prix passager max ${calculateRidePrice(r.km ?? 0)} DH.`); loadTrips(); }
+    } catch { setMessage("La publication a échoué. Réessayez."); } finally { setBusy(null); }
+  }
+  async function toggle(trip: Trip) {
+    await supabase.from("trips").update({ active: !trip.active }).eq("id", trip.id);
+    loadTrips();
   }
 
   return (
-    <main className="min-h-screen">
-      <SiteHeader />
-      <div className="mx-auto max-w-xl px-5 py-8">
-        <h2 className="font-display text-2xl font-bold">Proposer un trajet</h2>
-        <div className="mt-3">
-          <RoleSwitch needs="driver" />
+    <main className="mx-auto min-h-screen max-w-xl px-5 py-6">
+      <Button asChild variant="ghost" size="sm" className="px-0"><Link to="/"><ArrowLeft />Retour</Link></Button>
+      <h1 className="mt-2 font-display text-2xl font-bold">Publier un trajet</h1>
+      <form onSubmit={submit} className="mt-6 space-y-5">
+        <div>
+          <label htmlFor="o" className="mb-2 block text-sm font-semibold">Départ</label>
+          <AddressInput id="o" value={originText} place={origin} placeholder="Tapez votre quartier, ex. Mesnana" onText={t => { setOriginText(t); setOrigin(null); }} onPick={p => { setOrigin(p); setOriginText(p.label); }} />
+          <Button type="button" variant="ghost" className="mt-1 px-0 text-primary" disabled={busy !== null} onClick={locate}>{busy === "gps" ? <LoaderCircle className="animate-spin" /> : <LocateFixed />}Ma position actuelle</Button>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Vous partagez vos frais d’essence : le prix est calculé automatiquement, entre 5 et 20 DH
-          par passager.
-        </p>
-        {!account.ready && (
-          <p className="mt-6 text-sm text-muted-foreground" role="status">
-            Chargement…
-          </p>
-        )}
-        {account.ready && !account.email && (
-          <p className="mt-6 text-sm">
-            Connectez-vous avec votre adresse étudiante pour publier un trajet.{" "}
-            <Button asChild variant="link" className="px-1">
-              <Link to="/auth">Connexion</Link>
-            </Button>
-          </p>
-        )}
-        {account.email && done && (
-          <section className="mt-6 space-y-4 rounded-2xl border bg-card p-5" aria-live="polite">
-            <p className="flex items-center gap-2 text-lg font-bold text-primary">
-              <CircleCheck className="size-6" />
-              Trajet publié
-            </p>
-            <p className="text-sm">
-              {done.routeKm.toLocaleString("fr-FR")} km · environ {done.routeMinutes} min. Une
-              passagère qui fait tout le trajet paiera {calculateRidePrice(done.routeKm)} DH.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="cta">
-                <Link to="/mes-trajets">Voir mes trajets</Link>
-              </Button>
-              <Button variant="outline" onClick={() => setDone(null)}>
-                Publier un autre trajet
-              </Button>
-            </div>
-          </section>
-        )}
-        {account.email && !done && (
-          <form onSubmit={submit} className="mt-6 space-y-5">
-            <AddressField id="pub-origin" label="Départ" icon={MapPin} gps onChange={setOrigin} />
-            <AddressField
-              id="pub-destination"
-              label="Arrivée"
-              icon={GraduationCap}
-              initialText="ENSA Tanger"
-              autoPick
-              onChange={setDestination}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="pub-time" className="mb-2 block text-sm font-semibold">
-                  Heure de départ
-                </label>
-                <input
-                  id="pub-time"
-                  type="time"
-                  required
-                  className={fieldClass}
-                  value={time}
-                  onChange={(event) => setTime(event.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="pub-seats" className="mb-2 block text-sm font-semibold">
-                  Places libres
-                </label>
-                <select
-                  id="pub-seats"
-                  className={fieldClass}
-                  value={seats}
-                  onChange={(event) => setSeats(Number(event.target.value))}
-                >
-                  {[1, 2, 3, 4, 5, 6].map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <fieldset>
-              <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                <Car className="size-4 text-primary" />
-                Votre véhicule
-              </legend>
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  aria-label="Marque"
-                  placeholder="Marque"
-                  required
-                  className={fieldClass}
-                  value={vehicle.brand}
-                  onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value })}
-                />
-                <input
-                  aria-label="Couleur"
-                  placeholder="Couleur"
-                  required
-                  className={fieldClass}
-                  value={vehicle.color}
-                  onChange={(event) => setVehicle({ ...vehicle, color: event.target.value })}
-                />
-                <input
-                  aria-label="Plaque d’immatriculation"
-                  placeholder="Plaque"
-                  required
-                  className={fieldClass}
-                  value={vehicle.plate}
-                  onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value })}
-                />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Les passagers voient la marque et la couleur ; la plaque n’est montrée qu’après
-                réservation.
-              </p>
-            </fieldset>
-            <fieldset>
-              <legend className="mb-2 text-sm font-semibold">Fréquence</legend>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={once ? "outline" : "default"}
-                  aria-pressed={!once}
-                  onClick={() => setOnce(false)}
-                >
-                  Chaque semaine
-                </Button>
-                <Button
-                  type="button"
-                  variant={once ? "default" : "outline"}
-                  aria-pressed={once}
-                  onClick={() => setOnce(true)}
-                >
-                  Une seule fois
-                </Button>
-              </div>
-              {once ? (
-                <div className="mt-3">
-                  <label htmlFor="pub-date" className="mb-2 block text-sm font-semibold">
-                    Date
-                  </label>
-                  <input
-                    id="pub-date"
-                    type="date"
-                    required
-                    className={fieldClass}
-                    value={date}
-                    onChange={(event) => setDate(event.target.value)}
-                  />
-                </div>
-              ) : (
-                <div
-                  className="mt-3 flex flex-wrap gap-2"
-                  role="group"
-                  aria-label="Jours de la semaine"
-                >
-                  {DAYS.map(([name, value]) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      size="sm"
-                      variant={days.includes(value) ? "default" : "outline"}
-                      aria-pressed={days.includes(value)}
-                      onClick={() => toggleDay(value)}
-                    >
-                      {name}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </fieldset>
-            <Button variant="cta" className="w-full" type="submit" disabled={busy}>
-              {busy && <LoaderCircle className="animate-spin" />}
-              {busy ? "Vérification de l’itinéraire…" : "Publier mon trajet"}
-            </Button>
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              L’itinéraire vient de services communautaires gratuits : la publication peut prendre
-              quelques secondes.
-            </p>
-          </form>
-        )}
-      </div>
+        <div>
+          <label htmlFor="d" className="mb-2 block text-sm font-semibold">Arrivée</label>
+          <AddressInput id="d" value={destText} place={destination} onText={t => { setDestText(t); setDestination(null); }} onPick={p => { setDestination(p); setDestText(p.label); }} />
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant={recurring ? "default" : "outline"} onClick={() => setRecurring(true)}>Chaque semaine</Button>
+          <Button type="button" variant={!recurring ? "default" : "outline"} onClick={() => setRecurring(false)}>Une seule fois</Button>
+        </div>
+        {recurring ? <div className="flex flex-wrap gap-2">{DAYS.map((d, i) => { const n = i + 1; const on = weekdays.includes(n); return <Button key={d} type="button" size="sm" variant={on ? "default" : "outline"} aria-pressed={on} onClick={() => setWeekdays(on ? weekdays.filter(x => x !== n) : [...weekdays, n])}>{d}</Button>; })}</div>
+          : <div><label htmlFor="date" className="mb-2 block text-sm font-semibold">Date</label><input id="date" type="date" required className={field} value={date} onChange={e => setDate(e.target.value)} /></div>}
+        <div className="grid grid-cols-2 gap-3">
+          <div><label htmlFor="t" className="mb-2 block text-sm font-semibold">Heure de départ</label><input id="t" type="time" required className={field} value={time} onChange={e => setTime(e.target.value)} /></div>
+          <div><label htmlFor="s" className="mb-2 block text-sm font-semibold">Places</label><input id="s" type="number" min={1} max={6} required className={field} value={seats} onChange={e => setSeats(Number(e.target.value))} /></div>
+        </div>
+        <fieldset className="grid grid-cols-3 gap-3">
+          <legend className="mb-2 flex items-center gap-2 text-sm font-semibold"><Car className="size-4 text-primary" />Véhicule</legend>
+          <input aria-label="Marque" placeholder="Marque" required className={field} value={vehicle.brand} onChange={e => setVehicle({ ...vehicle, brand: e.target.value })} />
+          <input aria-label="Couleur" placeholder="Couleur" required className={field} value={vehicle.color} onChange={e => setVehicle({ ...vehicle, color: e.target.value })} />
+          <input aria-label="Plaque" placeholder="Plaque" required className={field} value={vehicle.plate} onChange={e => setVehicle({ ...vehicle, plate: e.target.value })} />
+        </fieldset>
+        <Button variant="cta" type="submit" className="w-full" disabled={busy !== null}>{busy === "pub" ? <LoaderCircle className="animate-spin" /> : null}{busy === "pub" ? "Calcul de l’itinéraire…" : "Publier le trajet"}</Button>
+      </form>
+      {message && <p role="status" className="mt-4 text-sm">{message}</p>}
+      <section className="mt-8">
+        <h2 className="text-lg font-bold">Mes trajets</h2>
+        {trips.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Aucun trajet publié.</p>}
+        <ul className="mt-3 space-y-3">{trips.map(t => <li key={t.id} className="rounded-xl border p-4 text-sm">
+          <p className="font-semibold">{t.departure_time.slice(0, 5)} · {t.one_off_date ?? t.weekdays.map(n => DAYS[n - 1]).join(" ")}</p>
+          <p className="mt-1 line-clamp-1 text-muted-foreground">{t.origin_label} → {t.dest_label}</p>
+          <p className="mt-1">{t.route_km} km · {t.seats} places</p>
+          <Button size="sm" variant="outline" className="mt-2" onClick={() => toggle(t)}>{t.active ? "Mettre en pause" : "Réactiver"}</Button>
+        </li>)}</ul>
+      </section>
     </main>
   );
 }

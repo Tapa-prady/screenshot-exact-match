@@ -13,10 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthenticatedAssistantRouteImport } from './routes/_authenticated/assistant'
-import { Route as AuthenticatedMesTrajetsRouteImport } from './routes/_authenticated/mes-trajets'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
-import { Route as AuthenticatedTrajetBookingIdRouteImport } from './routes/_authenticated/trajet.$bookingId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -37,45 +34,23 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAssistantRoute = AuthenticatedAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedMesTrajetsRoute = AuthenticatedMesTrajetsRouteImport.update({
-  id: '/mes-trajets',
-  path: '/mes-trajets',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
   id: '/publier',
   path: '/publier',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedTrajetBookingIdRoute =
-  AuthenticatedTrajetBookingIdRouteImport.update({
-    id: '/trajet/$bookingId',
-    path: '/trajet/$bookingId',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/assistant': typeof AuthenticatedAssistantRoute
-  '/mes-trajets': typeof AuthenticatedMesTrajetsRoute
   '/publier': typeof AuthenticatedPublierRoute
-  '/trajet/$bookingId': typeof AuthenticatedTrajetBookingIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/assistant': typeof AuthenticatedAssistantRoute
-  '/mes-trajets': typeof AuthenticatedMesTrajetsRoute
   '/publier': typeof AuthenticatedPublierRoute
-  '/trajet/$bookingId': typeof AuthenticatedTrajetBookingIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,40 +58,20 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/assistant': typeof AuthenticatedAssistantRoute
-  '/_authenticated/mes-trajets': typeof AuthenticatedMesTrajetsRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
-  '/_authenticated/trajet/$bookingId': typeof AuthenticatedTrajetBookingIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/auth'
-    | '/reset-password'
-    | '/assistant'
-    | '/mes-trajets'
-    | '/publier'
-    | '/trajet/$bookingId'
+  fullPaths: '/' | '/auth' | '/reset-password' | '/publier'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/auth'
-    | '/reset-password'
-    | '/assistant'
-    | '/mes-trajets'
-    | '/publier'
-    | '/trajet/$bookingId'
+  to: '/' | '/auth' | '/reset-password' | '/publier'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
-    | '/_authenticated/assistant'
-    | '/_authenticated/mes-trajets'
     | '/_authenticated/publier'
-    | '/_authenticated/trajet/$bookingId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -156,20 +111,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/assistant': {
-      id: '/_authenticated/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof AuthenticatedAssistantRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/mes-trajets': {
-      id: '/_authenticated/mes-trajets'
-      path: '/mes-trajets'
-      fullPath: '/mes-trajets'
-      preLoaderRoute: typeof AuthenticatedMesTrajetsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/publier': {
       id: '/_authenticated/publier'
       path: '/publier'
@@ -177,28 +118,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPublierRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/trajet/$bookingId': {
-      id: '/_authenticated/trajet/$bookingId'
-      path: '/trajet/$bookingId'
-      fullPath: '/trajet/$bookingId'
-      preLoaderRoute: typeof AuthenticatedTrajetBookingIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAssistantRoute: typeof AuthenticatedAssistantRoute
-  AuthenticatedMesTrajetsRoute: typeof AuthenticatedMesTrajetsRoute
   AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
-  AuthenticatedTrajetBookingIdRoute: typeof AuthenticatedTrajetBookingIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAssistantRoute: AuthenticatedAssistantRoute,
-  AuthenticatedMesTrajetsRoute: AuthenticatedMesTrajetsRoute,
   AuthenticatedPublierRoute: AuthenticatedPublierRoute,
-  AuthenticatedTrajetBookingIdRoute: AuthenticatedTrajetBookingIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

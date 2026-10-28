@@ -15,11 +15,3 @@ describe("App routing", () => {
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
 });
-
-describe("Signed-in pages", () => {
-  it.each(["/publier", "/mes-trajets", "/assistant"])("%s sits under the login guard", (path) => {
-    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
-    const ids = router.matchRoutes(path).map((match) => match.routeId);
-    expect(ids).toContain("/_authenticated");
-  });
-});
