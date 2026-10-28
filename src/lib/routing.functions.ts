@@ -41,9 +41,9 @@ export const searchAddress = createServerFn({ method: "POST" })
       const seen = new Set<string>();
       const places = parsed.features.flatMap(feature => {
         const p = feature.properties as Record<string, string | undefined>;
-        const name = p.name ?? p.street;
+        const name = p["name"] ?? p["street"];
         if (!name) return [];
-        const area = [p.locality, p.street].find(value => value && value !== name);
+        const area = [p["locality"], p["street"]].find(value => value && value !== name);
         const label = area ? `${name}, ${area}` : name;
         if (seen.has(label)) return [];
         seen.add(label);
