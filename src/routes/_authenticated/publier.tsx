@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Car, LoaderCircle, LocateFixed, Search } from "lucide-react";
+import { ArrowLeft, Car, LoaderCircle, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { publishTrip, searchAddress } from "@/lib/routing.functions";
+import { publishTrip } from "@/lib/routing.functions";
+import { AddressInput, ENSA_TANGER, type Place } from "@/components/AddressInput";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateRidePrice } from "@/lib/ride-pricing";
 import type { Coordinates } from "@/lib/ride-matching";
@@ -20,20 +21,16 @@ export const Route = createFileRoute("/_authenticated/publier")({
   component: PublishPage,
 });
 
-type Place = { label: string; coordinates: Coordinates };
 type Trip = { id: string; origin_label: string; dest_label: string; departure_time: string; one_off_date: string | null; weekdays: number[]; seats: number; route_km: number; active: boolean };
 const field = "h-12 w-full rounded-xl border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 function PublishPage() {
-  const geocode = useServerFn(searchAddress);
   const publish = useServerFn(publishTrip);
   const [origin, setOrigin] = useState<Place | null>(null);
-  const [destination, setDestination] = useState<Place | null>(null);
+  const [destination, setDestination] = useState<Place | null>(ENSA_TANGER);
   const [originText, setOriginText] = useState("");
-  const [destText, setDestText] = useState("ENSA Tanger");
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [target, setTarget] = useState<"o" | "d">("o");
+  const [destText, setDestText] = useState(ENSA_TANGER.label);
   const [recurring, setRecurring] = useState(true);
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [date, setDate] = useState("");
@@ -52,13 +49,6 @@ function PublishPage() {
   }
   useEffect(() => { loadTrips(); }, []);
 
-  async function lookup(which: "o" | "d") {
-    const query = which === "o" ? originText : destText;
-    if (query.trim().length < 3) { setMessage("Saisissez au moins trois caractères."); return; }
-    setBusy(which); setTarget(which); setMessage("");
-    try { const r = await geocode({ data: { query } }); setPlaces(r.places); if (r.error) setMessage(r.error); else if (!r.places.length) setMessage("Aucune adresse trouvée."); }
-    catch { setMessage("La recherche d’adresse est indisponible."); } finally { setBusy(null); }
-  }
   function locate() {
     if (!navigator.geolocation) { setMessage("Localisation indisponible."); return; }
     setBusy("gps");
@@ -67,7 +57,7 @@ function PublishPage() {
   }
   async function submit(e: FormEvent) {
     e.preventDefault(); setMessage("");
-    if (!origin || !destination) { setMessage("Confirmez le départ et l’arrivée avec la loupe."); return; }
+    if (!origin || !destination) { setMessage("Choisissez le départ dans les suggestions."); return; }
     setBusy("pub");
     try {
       const r = await publish({ data: { origin, destination, departureTime: time, oneOffDate: recurring ? null : date, weekdays, seats, vehicle } });
@@ -87,14 +77,13 @@ function PublishPage() {
       <form onSubmit={submit} className="mt-6 space-y-5">
         <div>
           <label htmlFor="o" className="mb-2 block text-sm font-semibold">Départ</label>
-          <div className="flex gap-2"><input id="o" className={field} value={originText} placeholder="Votre adresse" onChange={e => { setOriginText(e.target.value); setOrigin(null); }} /><Button type="button" variant="soft" size="icon" aria-label="Rechercher le départ" disabled={busy !== null} onClick={() => lookup("o")}><Search /></Button></div>
+          <AddressInput id="o" value={originText} place={origin} placeholder="Tapez votre quartier, ex. Mesnana" onText={t => { setOriginText(t); setOrigin(null); }} onPick={p => { setOrigin(p); setOriginText(p.label); }} />
           <Button type="button" variant="ghost" className="mt-1 px-0 text-primary" disabled={busy !== null} onClick={locate}>{busy === "gps" ? <LoaderCircle className="animate-spin" /> : <LocateFixed />}Ma position actuelle</Button>
         </div>
         <div>
           <label htmlFor="d" className="mb-2 block text-sm font-semibold">Arrivée</label>
-          <div className="flex gap-2"><input id="d" className={field} value={destText} onChange={e => { setDestText(e.target.value); setDestination(null); }} /><Button type="button" variant="soft" size="icon" aria-label="Rechercher l’arrivée" disabled={busy !== null} onClick={() => lookup("d")}><Search /></Button></div>
+          <AddressInput id="d" value={destText} place={destination} onText={t => { setDestText(t); setDestination(null); }} onPick={p => { setDestination(p); setDestText(p.label); }} />
         </div>
-        {places.length > 0 && <ul className="divide-y border-y">{places.map(p => <li key={p.label}><Button type="button" variant="ghost" className="h-auto w-full justify-start whitespace-normal rounded-none py-3 text-start text-sm" onClick={() => { if (target === "o") { setOrigin(p); setOriginText(p.label); } else { setDestination(p); setDestText(p.label); } setPlaces([]); }}>{p.label}</Button></li>)}</ul>}
         <div className="flex gap-2">
           <Button type="button" variant={recurring ? "default" : "outline"} onClick={() => setRecurring(true)}>Chaque semaine</Button>
           <Button type="button" variant={!recurring ? "default" : "outline"} onClick={() => setRecurring(false)}>Une seule fois</Button>

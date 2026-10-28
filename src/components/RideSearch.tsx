@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { searchRealRides } from "@/lib/routing.functions";
 import { AddressInput, ENSA_TANGER, type Place } from "./AddressInput";
 import { supabase } from "@/integrations/supabase/client";
-import type { Coordinates } from "@/lib/ride-matching";
 import logo from "@/assets/rafiq_logo.png.asset.json";
 
 const RideMap = lazy(() => import("./RideMap"));
@@ -89,6 +88,7 @@ export function RideSearch() {
             </div>
             <Button variant="cta" className="w-full" disabled={busy !== null} type="submit">{busy === "rides" ? <LoaderCircle className="animate-spin" /> : <Search />}{busy === "rides" ? "Recherche…" : "Trouver un trajet"}</Button>
           </form>
+          <div className="mt-6 rounded-xl border bg-accent p-4"><p className="flex items-center gap-2 font-semibold"><Car className="size-5 text-primary" />Vous êtes conducteur ?</p><p className="mt-1 text-sm text-muted-foreground">Publiez votre trajet vers l’ENSA, les étudiants sur votre route vous trouveront.</p><Button asChild variant="cta" size="sm" className="mt-3"><Link to="/publier">{account ? "Publier un trajet" : "Se connecter et publier"}</Link></Button></div>
           {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
           {results && !results.error && <section className="mt-7" aria-live="polite">
             <h3 className="text-lg font-bold">{results.matches.length} trajet{results.matches.length !== 1 ? "s" : ""}</h3>
