@@ -30,15 +30,26 @@ async function routeRequest(kind: "car" | "foot", from: Coordinates, to: Coordin
 }
 
 export const searchAddress = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ query: z.string().trim().min(3).max(180) }))
+  .inputValidator(z.object({ query: z.string().trim().min(2).max(180) }))
   .handler(async ({ data }) => {
     try {
-      await pause();
-      const params = new URLSearchParams({ q: `${data.query}, Tanger, Maroc`, format: "jsonv2", limit: "4", countrycodes: "ma" });
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { headers, signal: AbortSignal.timeout(12000) });
+      // Photon supports prefix (type-ahead) search; biased and bounded to greater Tanger.
+      const params = new URLSearchParams({ q: data.query, limit: "8", lat: "35.76", lon: "-5.83", bbox: "-6.05,35.6,-5.6,35.85" });
+      const response = await fetch(`https://photon.komoot.io/api/?${params}`, { headers, signal: AbortSignal.timeout(8000) });
       if (!response.ok) throw new Error("Geocoding unavailable");
-      const places = z.array(z.object({ display_name: z.string(), lat: z.string(), lon: z.string() })).parse(await response.json());
-      return { places: places.map(place => ({ label: place.display_name, coordinates: coordinate.parse([Number(place.lon), Number(place.lat)]) })), error: null };
+      const parsed = z.object({ features: z.array(z.object({ geometry: z.object({ coordinates: coordinate }), properties: z.record(z.string(), z.unknown()) })) }).parse(await response.json());
+      const seen = new Set<string>();
+      const places = parsed.features.flatMap(feature => {
+        const p = feature.properties as Record<string, string | undefined>;
+        const name = p.name ?? p.street;
+        if (!name) return [];
+        const area = [p.locality, p.street].find(value => value && value !== name);
+        const label = area ? `${name}, ${area}` : name;
+        if (seen.has(label)) return [];
+        seen.add(label);
+        return [{ label, coordinates: feature.geometry.coordinates }];
+      }).slice(0, 6);
+      return { places, error: null };
     } catch {
       return { places: [], error: "La recherche d’adresse est indisponible. Vous pouvez utiliser votre position GPS." };
     }
